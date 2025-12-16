@@ -83,10 +83,10 @@ async function extractEmbeddedImages(buffer) {
       // Count operations for debugging
       const opCounts = {};
       for (let i = 0; i < ops.fnArray.length; i++) {
-        const opName = Object.keys(OPS).find((key) => OPS[key] === ops.fnArray[i]);
+        const opName = Object.keys(OPS).find((key) => OPS[key] === ops.fnArray[i]) || 'unknown';
         opCounts[opName] = (opCounts[opName] || 0) + 1;
       }
-      console.log(`Page ${pageNum} operations:`, opCounts);
+      console.log(`Page ${pageNum} operations:`, JSON.stringify(opCounts, null, 2));
 
       // Find image operations (XObject images, inline images, and Form XObjects)
       for (let i = 0; i < ops.fnArray.length; i++) {
@@ -131,6 +131,17 @@ async function extractEmbeddedImages(buffer) {
             continue;
           }
 
+          // Log what type of operation this is
+          const opType =
+            opCode === OPS.paintImageXObject
+              ? 'XObject'
+              : opCode === OPS.paintInlineImageXObject
+                ? 'Inline'
+                : 'FormXObject';
+          console.log(
+            `Found ${opType} "${imageName}" on page ${pageNum}, opCode=${opCode}`
+          );
+
           try {
             // Check if object exists (defensive check)
             if (page.objs.has && !page.objs.has(imageName)) {
@@ -140,6 +151,9 @@ async function extractEmbeddedImages(buffer) {
 
             // Get the image or form object (now loaded after rendering)
             const obj = page.objs.get(imageName);
+            console.log(
+              `  Object "${imageName}": exists=${!!obj}, hasBitmap=${!!(obj && obj.bitmap)}, hasDict=${!!(obj && obj.dict)}`
+            );
 
             if (obj && obj.bitmap) {
               // Raster image with bitmap
