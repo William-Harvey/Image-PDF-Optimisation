@@ -1686,25 +1686,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!xObjects) continue;
 
-        // Get the underlying dict Map from PDFDict
-        let xObjectsDict;
-        if (xObjects.dict && typeof xObjects.dict.entries === 'function') {
-          // pdf-lib PDFDict with .dict Map property
-          xObjectsDict = xObjects.dict;
-        } else if (typeof xObjects.entries === 'function') {
-          // Direct Map or object with entries()
-          xObjectsDict = xObjects;
-        } else {
-          console.warn(`XObjects on page ${pageNum} has unexpected structure`, {
-            type: typeof xObjects,
+        console.log(`XObjects type on page ${pageNum}:`, xObjects.constructor.name, {
+          hasEntries: typeof xObjects.entries,
+          hasDict: 'dict' in xObjects,
+          hasKeys: typeof xObjects.keys,
+          methods: Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects)).slice(0, 15),
+        });
+
+        // PDFDict.entries() returns array of [PDFName, PDFObject][]
+        if (typeof xObjects.entries !== 'function') {
+          console.error(`XObjects missing entries() - cannot iterate`, {
             constructor: xObjects?.constructor?.name,
-            hasDict: 'dict' in xObjects,
+            availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects)),
           });
           continue;
         }
 
+        // Get entries array from PDFDict
+        const xObjectEntries = xObjects.entries();
+        console.log(`Found ${xObjectEntries.length} XObjects on page ${pageNum}`);
+
         // Check each XObject to see if it's an image
-        for (const [xObjKey, xObjRef] of xObjectsDict.entries()) {
+        for (const [xObjKey, xObjRef] of xObjectEntries) {
           const xObjKeyName = xObjKey.decodeText ? xObjKey.decodeText() : xObjKey.encodedName;
           const xObj = pdfDoc.context.lookup(xObjRef);
 
