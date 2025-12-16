@@ -78,10 +78,35 @@ async function extractEmbeddedImages(buffer) {
 
       // Track current transformation matrix for Form XObjects
       const transformStack = [[1, 0, 0, 1, 0, 0]]; // Identity matrix
+      let currentTransform = transformStack[0];
 
       // Find image operations (XObject images, inline images, and Form XObjects)
       for (let i = 0; i < ops.fnArray.length; i++) {
         const opCode = ops.fnArray[i];
+        const args = ops.argsArray[i];
+
+        // Track graphics state changes
+        if (opCode === OPS.save) {
+          transformStack.push([...currentTransform]);
+        } else if (opCode === OPS.restore) {
+          if (transformStack.length > 1) {
+            transformStack.pop();
+            currentTransform = transformStack[transformStack.length - 1];
+          }
+        } else if (opCode === OPS.transform) {
+          // Multiply current transform with new transform
+          const [a, b, c, d, e, f] = args;
+          const [a0, b0, c0, d0, e0, f0] = currentTransform;
+          currentTransform = [
+            a * a0 + b * c0,
+            a * b0 + b * d0,
+            c * a0 + d * c0,
+            c * b0 + d * d0,
+            e * a0 + f * c0 + e0,
+            e * b0 + f * d0 + f0,
+          ];
+          transformStack[transformStack.length - 1] = currentTransform;
+        }
 
         // paintImageXObject = "Do" operator for XObject images
         // paintInlineImageXObject = inline images (BI/ID/EI operators)
@@ -130,24 +155,76 @@ async function extractEmbeddedImages(buffer) {
             } else if (opCode === OPS.paintFormXObjectBegin) {
               // Form XObject (vector graphics) - extract from rendered page
               try {
-                // Form XObjects are already rendered in pageCanvas
-                // We need to find their bounding box to extract the region
-                // For now, log that we found it
-                console.log(
-                  `Found Form XObject "${imageName}" (vector) on page ${pageNum} - included in full page render`
-                );
-                // Form XObjects don't have bitmap property, they're vector drawings
-                // Best captured via Full Pages mode or by analyzing the operator list
-                // to determine their bounding box (complex implementation)
+                // Get Form XObject dimensions from the PDF
+                // Form XObjects have BBox (bounding box) in their dictionary
+                const formObj = page.objs.get(imageName);
+
+                // Calculate bounding box in page coordinates using current transform
+                // Default to 100x100 if we can't get dimensions
+                let width = 100;
+                let height = 100;
+
+                // Try to get dimensions from the form object
+                if (formObj && formObj.dict && formObj.dict.get) {
+                  const bbox = formObj.dict.get('BBox');
+                  if (bbox && bbox.length >= 4) {
+                    width = Math.abs(bbox[2] - bbox[0]);
+                    height = Math.abs(bbox[3] - bbox[1]);
+                  }
+                }
+
+                // Apply current transform to get actual dimensions on page
+                const [a, b, c, d, e, f] = currentTransform;
+                const transformedWidth = Math.abs(a * width);
+                const transformedHeight = Math.abs(d * height);
+                const x = e * viewport.scale;
+                const y = viewport.height - f * viewport.scale - transformedHeight;
+
+                // Extract region from rendered page canvas
+                if (transformedWidth > 1 && transformedHeight > 1) {
+                  const extractCanvas = document.createElement('canvas');
+                  extractCanvas.width = transformedWidth;
+                  extractCanvas.height = transformedHeight;
+                  const extractCtx = extractCanvas.getContext('2d', { alpha: true });
+
+                  // Copy region from page canvas
+                  extractCtx.drawImage(
+                    pageCanvas,
+                    x,
+                    y,
+                    transformedWidth,
+                    transformedHeight,
+                    0,
+                    0,
+                    transformedWidth,
+                    transformedHeight
+                  );
+
+                  const dataURL = extractCanvas.toDataURL('image/png', 1.0);
+
+                  allImages.push({
+                    index: imageIndex++,
+                    dataURL,
+                    originalSize: estimateDataURLSize(dataURL),
+                    width: transformedWidth,
+                    height: transformedHeight,
+                    pageNum,
+                    imageName: `page-${pageNum}-form-${imageName}`,
+                    isOptimized: false,
+                    optimizedDataURL: null,
+                    optimizedSize: 0,
+                  });
+
+                  console.log(
+                    `Extracted Form XObject "${imageName}" (${transformedWidth}x${transformedHeight}) from page ${pageNum}`
+                  );
+                }
               } catch (formErr) {
-                console.warn(`Could not process Form XObject "${imageName}":`, formErr.message);
+                console.warn(`Could not extract Form XObject "${imageName}":`, formErr.message);
               }
             }
           } catch (err) {
-            console.warn(
-              `Failed to extract "${imageName}" from page ${pageNum}:`,
-              err.message
-            );
+            console.warn(`Failed to extract "${imageName}" from page ${pageNum}:`, err.message);
             // Continue to next image
           }
         }
