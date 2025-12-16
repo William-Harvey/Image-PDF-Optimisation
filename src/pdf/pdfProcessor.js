@@ -143,6 +143,14 @@ async function extractEmbeddedImages(buffer) {
           const pathOps = args[0];
           const pathData = args[1];
 
+          console.log(
+            `constructPath on page ${pageNum}: args.length=${args.length}, pathOps=`,
+            pathOps,
+            `pathData=`,
+            pathData,
+            `pathData.length=${pathData ? pathData.length : 'null'}`
+          );
+
           if (pathData && pathData.length >= 4) {
             // Simple bounding box calculation from path coordinates
             let minX = Infinity,
