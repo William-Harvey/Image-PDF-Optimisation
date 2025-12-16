@@ -1829,8 +1829,13 @@ document.addEventListener('DOMContentLoaded', () => {
               const pageDict = page.node;
               const resources = pageDict.Resources();
               let xObjects = resources.get(window.PDFLib.PDFName.of('XObject'));
-              if (xObjects && xObjects.constructor.name === 'PDFRef') {
-                xObjects = pdfDoc.context.lookup(xObjects);
+
+              // If it doesn't have set(), try to look it up
+              if (xObjects && typeof xObjects.set !== 'function') {
+                const lookedUp = pdfDoc.context.lookup(xObjects);
+                if (lookedUp && lookedUp !== xObjects) {
+                  xObjects = lookedUp;
+                }
               }
 
               // Update the XObject reference
