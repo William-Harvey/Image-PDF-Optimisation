@@ -143,35 +143,17 @@ async function extractEmbeddedImages(buffer) {
           const pathOps = args[0];
           const pathData = args[1];
 
-          console.log(
-            `constructPath on page ${pageNum}: args.length=${args.length}`,
-            `pathOps=${pathOps}`,
-            `pathData.length=${pathData ? pathData.length : 'null'}`,
-            `pathData[0]=`,
-            pathData ? pathData[0] : 'null',
-            `args[2]=`,
-            args[2]
-          );
-
-          if (pathData && pathData.length >= 4) {
-            // Simple bounding box calculation from path coordinates
-            let minX = Infinity,
-              minY = Infinity,
-              maxX = -Infinity,
-              maxY = -Infinity;
-            for (let j = 0; j < pathData.length; j += 2) {
-              const x = pathData[j];
-              const y = pathData[j + 1];
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-              if (y < minY) minY = y;
-              if (y > maxY) maxY = y;
-            }
-
-            // Store as potential clip bounds (will be used if followed by clip operation)
-            const pathBounds = { minX, minY, maxX, maxY };
+          // args[2] contains the pre-computed bounding box: [minX, minY, maxX, maxY]
+          const bbox = args[2];
+          if (bbox && bbox.length === 4) {
+            const pathBounds = {
+              minX: bbox[0],
+              minY: bbox[1],
+              maxX: bbox[2],
+              maxY: bbox[3],
+            };
             console.log(
-              `constructPath on page ${pageNum}: bounds=${JSON.stringify(pathBounds)}, currentClip=${JSON.stringify(currentClipBounds)}`
+              `constructPath on page ${pageNum}: bbox=[${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}]`
             );
             currentClipBounds = pathBounds;
           }
