@@ -41,6 +41,7 @@ import {
   loadImageElement,
   getBlobSizeFromDataURL as getBlobSize,
 } from './src/image/imageProcessor.js';
+import { extractPdfImages, extractPdfText, getPdfMetadata } from './src/pdf/pdfProcessor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // --- DOM Elements ---
@@ -658,187 +659,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function extractImagesFromPDF(file, mode = 'images') {
-    console.log(`Starting PDF extraction (mode: ${mode})...`);
+    console.log(`Starting PDF extraction with unpdf (mode: ${mode})...`);
 
-    // Read and store PDF bytes FIRST (before any other operations)
-    console.log('Reading PDF file...');
+    // Store original PDF bytes for rebuilding
     const arrayBuffer = await file.arrayBuffer();
-
-    // Create a COPY for storage - PDF.js will transfer/detach the original ArrayBuffer
-    // when it sends it to the worker, so we need our own independent copy
     pdfOriginalBytes = new Uint8Array(arrayBuffer).slice();
     console.log(`Stored original PDF: ${pdfOriginalBytes.length} bytes`);
 
-    // Wait for libraries
-    if (!window.pdfjsLib) {
-      console.log('Waiting for PDF.js...');
-      await new Promise((resolve) => {
-        if (window.pdfJsReady) resolve();
-        else window.addEventListener('pdfjs-loaded', resolve, { once: true });
-      });
-    }
-
-    if (!window.pdfjsLib) {
-      throw new Error(
-        'PDF.js library not loaded. Make sure pdf.mjs and pdf.worker.mjs are in your extension folder.'
-      );
-    }
-
-    if (!window.PDFLib) {
-      throw new Error(
-        'pdf-lib library not loaded. Make sure pdf-lib.min.js is in your extension folder.'
-      );
-    }
-
-    // Load with PDF.js for extraction
-    const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
-    pdfDocument = await loadingTask.promise;
-    console.log(`PDF loaded: ${pdfDocument.numPages} pages`);
-
-    pdfPages.textContent = pdfDocument.numPages;
+    // Get PDF metadata
+    const metadata = await getPdfMetadata(file);
+    pdfPages.textContent = metadata.numPages;
     pdfOriginalSize.textContent = formatBytes(file.size);
-    pdfImages = [];
 
-    let imageIndex = 0;
-
-    // Show progress during extraction
+    // Show progress
     const loadingProgress = document.getElementById('loadingProgress');
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
     const loadingText = document.querySelector('.loading-text');
-
     if (loadingProgress) {
       loadingProgress.style.display = 'flex';
       loadingText.textContent =
         mode === 'fullpages' ? 'Rendering PDF pages...' : 'Extracting images from PDF...';
     }
 
-    // Extract images from each page
-    for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-      // Update progress
-      const progress = Math.round((pageNum / pdfDocument.numPages) * 100);
-      if (progressFill) progressFill.style.width = `${progress}%`;
-      if (progressText) progressText.textContent = `Page ${pageNum}/${pdfDocument.numPages}`;
-
-      console.log(
-        mode === 'fullpages'
-          ? `Rendering page ${pageNum}...`
-          : `Extracting images from page ${pageNum}...`
-      );
-      const page = await pdfDocument.getPage(pageNum);
-
-      // Render the page to force loading of all objects
-      // We need to do this or the image objects won't be available
-      const viewport = page.getViewport({ scale: 1.0 });
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-      }).promise;
-
-      // Handle different extraction modes
-      if (mode === 'fullpages') {
-        // Full page rendering mode - capture entire page including backgrounds
-        const dataURL = canvas.toDataURL('image/png', 1.0);
-        const size = await getBlobSizeFromDataURL(dataURL);
-
-        pdfImages.push({
-          index: imageIndex++,
-          pageNum: pageNum,
-          imageName: `page_${pageNum}`,
-          dataURL: dataURL,
-          originalSize: size,
-          optimizedDataURL: null,
-          optimizedSize: null,
-          width: canvas.width,
-          height: canvas.height,
-          isOptimized: false,
-        });
-
-        console.log(
-          `Rendered full page ${pageNum}: ${canvas.width}×${canvas.height}, ${formatBytes(size)}`
-        );
-      } else {
-        // Images only mode - extract embedded images
-        // Now get the operator list to find images
-        const ops = await page.getOperatorList();
-
-        // Find image operations
-        for (let i = 0; i < ops.fnArray.length; i++) {
-          // Op code 85 = paintImageXObject (Do operator for images)
-          if (ops.fnArray[i] === window.pdfjsLib.OPS.paintImageXObject) {
-            const imageName = ops.argsArray[i][0];
-            console.log(`Found image "${imageName}" on page ${pageNum}`);
-
-            try {
-              // Check if object exists before trying to get it
-              if (!page.objs.has(imageName)) {
-                console.warn(`Image "${imageName}" not in objects dictionary, skipping`);
-                continue;
-              }
-
-              // Get the image object (should be loaded now after rendering)
-              let image;
-              try {
-                image = page.objs.get(imageName);
-              } catch (getErr) {
-                // Object not resolved yet, skip it
-                console.warn(`Image "${imageName}" not resolved yet, skipping:`, getErr.message);
-                continue;
-              }
-
-              if (image && image.bitmap) {
-                // Convert ImageBitmap to canvas with alpha preservation
-                const extractCanvas = document.createElement('canvas');
-                extractCanvas.width = image.width;
-                extractCanvas.height = image.height;
-
-                // Enable alpha channel for transparency
-                const ctx = extractCanvas.getContext('2d', {
-                  alpha: true,
-                  willReadFrequently: true,
-                });
-
-                // Clear to transparent (not black)
-                ctx.clearRect(0, 0, extractCanvas.width, extractCanvas.height);
-
-                // Draw image preserving transparency
-                ctx.drawImage(image.bitmap, 0, 0);
-
-                // Always export as PNG to preserve transparency
-                const dataURL = extractCanvas.toDataURL('image/png', 1.0);
-                const size = await getBlobSizeFromDataURL(dataURL);
-
-                pdfImages.push({
-                  index: imageIndex++,
-                  pageNum: pageNum,
-                  imageName: imageName,
-                  dataURL: dataURL,
-                  originalSize: size,
-                  optimizedDataURL: null,
-                  optimizedSize: null,
-                  width: image.width,
-                  height: image.height,
-                  isOptimized: false,
-                });
-
-                console.log(
-                  `Extracted "${imageName}": ${image.width}×${image.height}, ${formatBytes(size)}`
-                );
-              } else {
-                console.warn(`Image "${imageName}" has no bitmap, skipping`);
-              }
-            } catch (err) {
-              console.warn(`Could not extract image "${imageName}":`, err);
-            }
-          }
-        }
-      } // Close else block
-    }
+    // Extract images using unpdf
+    pdfImages = await extractPdfImages(file, mode);
 
     if (pdfImages.length === 0) {
       throw new Error(
@@ -849,9 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     console.log(
-      mode === 'fullpages'
-        ? `Rendered ${pdfImages.length} pages total`
-        : `Extracted ${pdfImages.length} images total`
+      `Extracted ${pdfImages.length} ${mode === 'fullpages' ? 'pages' : 'images'} using unpdf`
     );
     pdfImageCount.textContent = pdfImages.length;
     galleryImageCount.textContent = pdfImages.length;

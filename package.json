@@ -30,5 +30,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/William-Harvey/Image-PDF-Optimisation.git"
+  },
+  "dependencies": {
+    "unpdf": "^1.4.0"
   }
 }
