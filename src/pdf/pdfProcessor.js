@@ -159,18 +159,22 @@ async function extractEmbeddedImages(buffer) {
             }
 
             // Store as potential clip bounds (will be used if followed by clip operation)
-            currentClipBounds = { minX, minY, maxX, maxY };
+            const pathBounds = { minX, minY, maxX, maxY };
+            console.log(
+              `constructPath on page ${pageNum}: bounds=${JSON.stringify(pathBounds)}, currentClip=${JSON.stringify(currentClipBounds)}`
+            );
+            currentClipBounds = pathBounds;
           }
         } else if (opCode === OPS.clip) {
           // Clip operation uses the previously constructed path
           // currentClipBounds should already be set by constructPath
-          if (currentClipBounds) {
-            console.log(
-              `Clip region on page ${pageNum}:`,
-              currentClipBounds
-            );
-          }
+          console.log(
+            `CLIP operation on page ${pageNum}, currentClipBounds=${JSON.stringify(currentClipBounds)}`
+          );
         } else if (opCode === OPS.shadingFill) {
+          console.log(
+            `SHADINGFILL on page ${pageNum}, currentClipBounds=${JSON.stringify(currentClipBounds)}`
+          );
           // Extract the shading region from the rendered page
           if (currentClipBounds) {
             try {
