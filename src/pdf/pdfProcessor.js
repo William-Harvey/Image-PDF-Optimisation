@@ -135,34 +135,53 @@ async function extractEmbeddedImages(buffer) {
                 ? 'Inline'
                 : 'FormXObject';
           console.log(
-            `Processing ${opType} operation, args:`,
-            args,
-            `imageName type: ${typeof imageName}`,
-            `imageName:`,
-            imageName
+            `Processing ${opType} operation, args length: ${args.length}`,
+            `args[0]:`,
+            args[0],
+            `args[1]:`,
+            args[1]
           );
 
+          // For Form XObjects, the structure is different:
+          // args[0] = transformation matrix (Float32Array)
+          // args[1] = Form XObject name (string)
+          // For regular images:
+          // args[0] = image name (string)
+          let actualImageName;
+          if (opCode === OPS.paintFormXObjectBegin && args.length >= 2) {
+            actualImageName = args[1]; // Form XObject name is second argument
+            console.log(`  Form XObject name from args[1]: "${actualImageName}"`);
+          } else {
+            actualImageName = imageName; // Regular image name from args[0]
+          }
+
           // Skip if imageName is not a valid string or has name property
-          if (!imageName || (typeof imageName !== 'string' && !imageName.name)) {
-            console.warn(`⚠ Skipping ${opType} - invalid imageName:`, imageName);
+          if (
+            !actualImageName ||
+            (typeof actualImageName !== 'string' && !actualImageName.name)
+          ) {
+            console.warn(`⚠ Skipping ${opType} - invalid imageName:`, actualImageName);
             continue;
           }
 
+          // Use actualImageName from here on
+          const finalImageName = actualImageName;
+
           console.log(
-            `✓ Found ${opType} "${imageName}" on page ${pageNum}, opCode=${opCode}`
+            `✓ Found ${opType} "${finalImageName}" on page ${pageNum}, opCode=${opCode}`
           );
 
           try {
             // Check if object exists (defensive check)
-            if (page.objs.has && !page.objs.has(imageName)) {
-              console.warn(`Image/Form "${imageName}" not found, skipping`);
+            if (page.objs.has && !page.objs.has(finalImageName)) {
+              console.warn(`Image/Form "${finalImageName}" not found, skipping`);
               continue;
             }
 
             // Get the image or form object (now loaded after rendering)
-            const obj = page.objs.get(imageName);
+            const obj = page.objs.get(finalImageName);
             console.log(
-              `  Object "${imageName}": exists=${!!obj}, hasBitmap=${!!(obj && obj.bitmap)}, hasDict=${!!(obj && obj.dict)}`
+              `  Object "${finalImageName}": exists=${!!obj}, hasBitmap=${!!(obj && obj.bitmap)}, hasDict=${!!(obj && obj.dict)}`
             );
 
             if (obj && obj.bitmap) {
@@ -184,7 +203,7 @@ async function extractEmbeddedImages(buffer) {
                 width: obj.width,
                 height: obj.height,
                 pageNum,
-                imageName: `page-${pageNum}-${imageName}`,
+                imageName: `page-${pageNum}-${finalImageName}`,
                 isOptimized: false,
                 optimizedDataURL: null,
                 optimizedSize: 0,
@@ -194,7 +213,7 @@ async function extractEmbeddedImages(buffer) {
               try {
                 // Get Form XObject dimensions from the PDF
                 // Form XObjects have BBox (bounding box) in their dictionary
-                const formObj = page.objs.get(imageName);
+                const formObj = page.objs.get(finalImageName);
 
                 // Calculate bounding box in page coordinates using current transform
                 // Default to 100x100 if we can't get dimensions
@@ -246,22 +265,22 @@ async function extractEmbeddedImages(buffer) {
                     width: transformedWidth,
                     height: transformedHeight,
                     pageNum,
-                    imageName: `page-${pageNum}-form-${imageName}`,
+                    imageName: `page-${pageNum}-form-${finalImageName}`,
                     isOptimized: false,
                     optimizedDataURL: null,
                     optimizedSize: 0,
                   });
 
                   console.log(
-                    `Extracted Form XObject "${imageName}" (${transformedWidth}x${transformedHeight}) from page ${pageNum}`
+                    `Extracted Form XObject "${finalImageName}" (${transformedWidth}x${transformedHeight}) from page ${pageNum}`
                   );
                 }
               } catch (formErr) {
-                console.warn(`Could not extract Form XObject "${imageName}":`, formErr.message);
+                console.warn(`Could not extract Form XObject "${finalImageName}":`, formErr.message);
               }
             }
           } catch (err) {
-            console.warn(`Failed to extract "${imageName}" from page ${pageNum}:`, err.message);
+            console.warn(`Failed to extract "${finalImageName}" from page ${pageNum}:`, err.message);
             // Continue to next image
           }
         }
