@@ -170,18 +170,19 @@ async function extractEmbeddedImages(buffer) {
           // Extract the shading region from the rendered page
           if (currentClipBounds) {
             try {
-              // Transform clip bounds to page coordinates
-              const [a, b, c, d, e, f] = currentTransform;
-              const x1 = currentClipBounds.minX * a + currentClipBounds.minY * c + e;
-              const y1 = currentClipBounds.minX * b + currentClipBounds.minY * d + f;
-              const x2 = currentClipBounds.maxX * a + currentClipBounds.maxY * c + e;
-              const y2 = currentClipBounds.maxX * b + currentClipBounds.maxY * d + f;
+              // Clip bounds are already in page coordinates (PDF units)
+              // Convert directly to canvas coordinates (viewport units)
+              const minX = currentClipBounds.minX * viewport.scale;
+              const minY = currentClipBounds.minY * viewport.scale;
+              const maxX = currentClipBounds.maxX * viewport.scale;
+              const maxY = currentClipBounds.maxY * viewport.scale;
 
-              // Convert to canvas coordinates (PDF uses bottom-left origin, canvas uses top-left)
-              const canvasX = Math.min(x1, x2) * viewport.scale;
-              const canvasY = viewport.height - Math.max(y1, y2) * viewport.scale;
-              const width = Math.abs(x2 - x1) * viewport.scale;
-              const height = Math.abs(y2 - y1) * viewport.scale;
+              // PDF uses bottom-left origin, canvas uses top-left
+              // Flip Y coordinate
+              const canvasX = Math.max(0, minX);
+              const canvasY = Math.max(0, viewport.height - maxY);
+              const width = Math.min(maxX - minX, pageCanvas.width - canvasX);
+              const height = Math.min(maxY - minY, pageCanvas.height - canvasY);
 
               console.log(
                 `Extracting shading ${shadingIndex} on page ${pageNum}: (${Math.round(canvasX)}, ${Math.round(canvasY)}, ${Math.round(width)}x${Math.round(height)})`
