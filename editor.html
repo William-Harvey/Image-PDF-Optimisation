@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Image Editor</title>
+    <link rel="stylesheet" href="cropper.min.css" />
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body class="dark">
+    <!-- DISCLAIMER OVERLAY -->
+    <div id="disclaimerOverlay">
+      <h2>Disclaimer & Terms of Use</h2>
+      <p>
+        This extension is provided "as is", without any warranty, express or implied. The developer
+        and its affiliates assume no responsibility for any errors, interruptions, or damages,
+        whether direct, indirect, incidental, or consequential, that may result from using this
+        extension. By installing or using this extension, you agree that you are solely responsible
+        for its use and accept all risks associated with it. If you do not agree with these terms,
+        please do not install or use the extension.
+      </p>
+      <p style="font-weight: 500">Developed by William Harvey</p>
+      <p>
+        <button id="acceptDisclaimerBtn" class="btn btn-default">Accept & Continue</button>
+      </p>
+    </div>
+    <!-- END DISCLAIMER OVERLAY -->
+
+    <!-- Main Application Container (Initially hidden if disclaimer not accepted) -->
+    <div class="app-container">
+      <!-- Sidebar Controls -->
+      <aside class="sidebar" role="complementary" aria-label="Image editing controls">
+        <h2>Controls</h2>
+
+        <!-- Upload Section -->
+        <section class="control-section">
+          <h3>Upload File</h3>
+          <div class="button-group">
+            <label for="imageUpload" class="btn btn-primary" title="Select an image file to edit">
+              Image
+            </label>
+            <label for="pdfUpload" class="btn btn-primary" title="Select a PDF to optimize">
+              PDF
+            </label>
+          </div>
+          <input
+            type="file"
+            id="imageUpload"
+            accept="image/png, image/jpeg, image/gif, image/webp, image/bmp"
+            hidden
+          />
+          <input type="file" id="pdfUpload" accept="application/pdf" hidden />
+          <p id="fileName" class="file-name-display"></p>
+          <div id="pdfExtractionMode" class="form-group" style="margin-top: 0.5rem">
+            <label style="font-size: 0.85rem; margin-bottom: 0.25rem">PDF Extraction:</label>
+            <div class="radio-group">
+              <label title="Extract only embedded image objects" style="font-size: 0.85rem"
+                ><input type="radio" name="extractionMode" value="images" checked /> Images
+                Only</label
+              >
+              <label title="Render entire pages including backgrounds" style="font-size: 0.85rem"
+                ><input type="radio" name="extractionMode" value="fullpages" /> Full Pages</label
+              >
+            </div>
+          </div>
+          <p class="help-text">Or drag & drop a file, or paste image from clipboard (Ctrl+V)</p>
+        </section>
+
+        <!-- Clear Button Section -->
+        <section id="clearSection" class="control-section" style="display: none">
+          <button id="clearAllBtn" class="btn btn-danger btn-fullwidth">Clear / Start Again</button>
+        </section>
+
+        <!-- Image Info (Dynamic) -->
+        <section id="imageInfoSection" class="control-section" style="display: none">
+          <h3>Image Info</h3>
+          <p class="info-text">Original Dims: <span id="originalDimensions">--</span></p>
+          <p class="info-text">Original Size: <span id="originalFileSize">--</span></p>
+          <p class="info-text">Current Dims: <span id="currentDimensions">--</span></p>
+        </section>
+
+        <!-- PDF Info & Controls -->
+        <section id="pdfInfoSection" class="control-section" style="display: none">
+          <h3>PDF Info</h3>
+          <p class="info-text">Pages: <span id="pdfPages">--</span></p>
+          <p class="info-text">Images Found: <span id="pdfImageCount">--</span></p>
+          <p class="info-text">Original Size: <span id="pdfOriginalSize">--</span></p>
+          <p class="info-text">Optimized Size: <span id="pdfOptimizedSize">--</span></p>
+          <button
+            id="previewAllBtn"
+            class="btn btn-success btn-fullwidth"
+            style="margin-top: 1rem; display: none"
+            title="Edit images in gallery view"
+          >
+            Edit in Gallery
+          </button>
+        </section>
+
+        <!-- PDF Bulk Optimization -->
+        <section id="pdfBulkSection" class="control-section" style="display: none">
+          <h3>Bulk Optimize</h3>
+          <div class="form-group">
+            <label for="pdfQualitySlider"
+              >Image Quality (<span id="pdfQualityValue">0.75</span>):</label
+            >
+            <input
+              type="range"
+              id="pdfQualitySlider"
+              min="0.1"
+              max="1.0"
+              step="0.05"
+              value="0.75"
+              title="Quality for all images"
+            />
+          </div>
+          <button
+            id="applyBulkOptimization"
+            class="btn btn-primary btn-fullwidth"
+            title="Apply settings to all images"
+          >
+            Apply to All Images
+          </button>
+        </section>
+
+        <!-- Optimize/Format Section -->
+        <section id="formatSection" class="control-section">
+          <h3>1. Format & Quality</h3>
+          <div class="section-content">
+            <div class="form-group">
+              <label>Output Format:</label>
+              <div class="radio-group">
+                <label title="JPEG format - good for photos, lossy compression"
+                  ><input type="radio" name="format" value="image/jpeg" checked /> JPG</label
+                >
+                <label title="PNG format - lossless, supports transparency"
+                  ><input type="radio" name="format" value="image/png" /> PNG</label
+                >
+                <label title="WebP format - modern format with better compression"
+                  ><input type="radio" name="format" value="image/webp" /> WEBP</label
+                >
+              </div>
+            </div>
+            <div id="qualityControl" class="form-group">
+              <label for="qualitySlider">Quality (<span id="qualityValue">0.92</span>):</label>
+              <input
+                type="range"
+                id="qualitySlider"
+                min="0.01"
+                max="1.0"
+                step="0.01"
+                value="0.92"
+                title="Adjust compression quality"
+              />
+            </div>
+            <div class="form-group">
+              <p class="info-text">Est. Size: <span id="optimizedFileSize">--</span></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Crop Section -->
+        <section id="cropSection" class="control-section">
+          <h3>2. Crop</h3>
+          <div class="section-content">
+            <div class="form-group">
+              <label>Aspect Ratio:</label>
+              <div class="button-group">
+                <button
+                  id="aspectFree"
+                  class="btn btn-secondary btn-small aspect-btn active"
+                  data-aspect="free"
+                  title="Free crop - any size"
+                >
+                  Free
+                </button>
+                <button
+                  id="aspect1-1"
+                  class="btn btn-secondary btn-small aspect-btn"
+                  data-aspect="1"
+                  title="Square crop (1:1) - Instagram"
+                >
+                  1:1
+                </button>
+                <button
+                  id="aspect4-3"
+                  class="btn btn-secondary btn-small aspect-btn"
+                  data-aspect="1.333"
+                  title="Standard photo (4:3)"
+                >
+                  4:3
+                </button>
+                <button
+                  id="aspect16-9"
+                  class="btn btn-secondary btn-small aspect-btn"
+                  data-aspect="1.778"
+                  title="Widescreen (16:9) - YouTube"
+                >
+                  16:9
+                </button>
+              </div>
+            </div>
+            <div class="button-group">
+              <button
+                id="startCropBtn"
+                class="btn btn-secondary"
+                title="Enable cropping mode to select area"
+              >
+                Enable Crop
+              </button>
+              <button
+                id="applyCropBtn"
+                class="btn btn-success"
+                disabled
+                title="Apply the selected crop area"
+              >
+                Apply Crop
+              </button>
+              <button
+                id="cancelCropBtn"
+                class="btn btn-danger"
+                disabled
+                title="Cancel cropping and return to normal mode"
+              >
+                Cancel Crop
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rotate & Flip Section -->
+        <section id="rotateSection" class="control-section">
+          <h3>3. Rotate & Flip</h3>
+          <div class="section-content">
+            <div class="button-group">
+              <button
+                id="rotateLeftBtn"
+                class="btn btn-secondary"
+                title="Rotate 90° counter-clockwise"
+              >
+                ↶ 90°
+              </button>
+              <button id="rotateRightBtn" class="btn btn-secondary" title="Rotate 90° clockwise">
+                ↷ 90°
+              </button>
+            </div>
+            <div class="button-group" style="margin-top: 0.5rem">
+              <button
+                id="flipHorizontalBtn"
+                class="btn btn-secondary"
+                title="Flip horizontally (mirror)"
+              >
+                ⇄ Flip H
+              </button>
+              <button id="flipVerticalBtn" class="btn btn-secondary" title="Flip vertically">
+                ⇅ Flip V
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Resize Section -->
+        <section id="resizeSection" class="control-section">
+          <h3>4. Resize</h3>
+          <div class="section-content">
+            <div class="resize-inputs">
+              <div class="form-group">
+                <label for="resizeWidth">Width:</label>
+                <input
+                  type="number"
+                  id="resizeWidth"
+                  placeholder="px"
+                  min="1"
+                  title="Target width in pixels"
+                />
+              </div>
+              <div class="form-group">
+                <label for="resizeHeight">Height:</label>
+                <input
+                  type="number"
+                  id="resizeHeight"
+                  placeholder="px"
+                  min="1"
+                  title="Target height in pixels"
+                />
+              </div>
+            </div>
+            <div class="form-group form-group-checkbox">
+              <input type="checkbox" id="aspectLock" checked />
+              <label for="aspectLock" title="Maintain aspect ratio when resizing"
+                >Lock Aspect Ratio</label
+              >
+            </div>
+            <button
+              id="applyResizeBtn"
+              class="btn btn-primary btn-fullwidth"
+              title="Apply the new dimensions"
+            >
+              Apply Resize
+            </button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Main Image Area -->
+      <main class="main-content" role="main" aria-label="Image preview and editing area">
+        <!-- Quick Actions Toolbar -->
+        <div id="quickActions" class="quick-actions-bar" style="display: none">
+          <div class="quick-actions-group">
+            <button
+              id="quickRotateLeft"
+              class="btn btn-secondary btn-small"
+              title="Rotate 90° left"
+            >
+              ↶
+            </button>
+            <button
+              id="quickRotateRight"
+              class="btn btn-secondary btn-small"
+              title="Rotate 90° right"
+            >
+              ↷
+            </button>
+            <button id="quickFlipH" class="btn btn-secondary btn-small" title="Flip horizontally">
+              ⇄
+            </button>
+            <button id="quickFlipV" class="btn btn-secondary btn-small" title="Flip vertically">
+              ⇅
+            </button>
+          </div>
+          <div class="quick-actions-group">
+            <span class="quick-label" id="currentDimsDisplay">--</span>
+          </div>
+        </div>
+
+        <div id="imageContainer" class="image-container" role="img" aria-label="Image preview">
+          <p class="placeholder-text">
+            Upload an image or PDF to begin<br /><span style="font-size: 0.8em; opacity: 0.7"
+              >Or drag & drop / paste (Ctrl+V)</span
+            >
+          </p>
+
+          <!-- PDF Image Gallery -->
+          <div id="pdfGallery" class="pdf-gallery" style="display: none">
+            <div class="pdf-gallery-header">
+              <h3>PDF Images (<span id="galleryImageCount">0</span>)</h3>
+              <p class="help-text">
+                Click any image to edit individually, or use bulk optimization
+              </p>
+            </div>
+            <div id="pdfImageGrid" class="pdf-image-grid">
+              <!-- Images will be inserted here dynamically -->
+            </div>
+          </div>
+
+          <!-- Single Image Editor -->
+          <div id="imageWrapper">
+            <!-- Wrapper for image & cropper -->
+            <img id="editableImage" src="#" alt="Editable Image" />
+          </div>
+          <!-- Comparison mode overlay -->
+          <div id="comparisonContainer" style="display: none">
+            <div class="comparison-original">
+              <img id="originalImagePreview" src="#" alt="Original Image" />
+            </div>
+            <div class="comparison-edited">
+              <img id="editedImagePreview" src="#" alt="Edited Image" />
+            </div>
+            <div class="comparison-slider">
+              <input
+                type="range"
+                id="comparisonSlider"
+                min="0"
+                max="100"
+                value="50"
+                class="comparison-range"
+              />
+              <div class="comparison-divider"></div>
+            </div>
+            <div class="comparison-label comparison-label-left">Original</div>
+            <div class="comparison-label comparison-label-right">Edited</div>
+          </div>
+        </div>
+
+        <!-- Drag and Drop Overlay -->
+        <div id="dropOverlay" class="drop-overlay" style="display: none">
+          <div class="drop-overlay-content">
+            <div class="drop-icon">⬇</div>
+            <div>Drop image here</div>
+          </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div
+          id="loadingIndicator"
+          class="loading-indicator"
+          style="display: none"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Processing...</div>
+            <div class="loading-progress" id="loadingProgress" style="display: none">
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+              <div class="progress-text" id="progressText">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen reader announcements -->
+        <div
+          id="srAnnouncements"
+          class="sr-only"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        ></div>
+
+        <!-- Success Notification -->
+        <div id="successNotification" class="success-notification" style="display: none">
+          <span id="successMessage">✓ Action completed</span>
+        </div>
+
+        <!-- NEW: Crop Size Display Element -->
+        <div id="cropSizeDisplay" style="display: none">0 x 0 px</div>
+        <!-- END NEW -->
+
+        <!-- PDF Image Preview Modal -->
+        <div id="pdfPreviewModal" class="pdf-preview-modal" style="display: none">
+          <div class="pdf-preview-content">
+            <div class="pdf-preview-header">
+              <div class="pdf-preview-info">
+                <span id="previewImageNumber">Image 1 of 24</span>
+                <span id="previewImageSize">1920×1080 • 2.4 MB → 1.2 MB (50% reduction)</span>
+              </div>
+              <button
+                id="closePreviewBtn"
+                class="btn btn-secondary btn-small"
+                title="Close preview"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div class="pdf-preview-image-container">
+              <button
+                id="prevImageBtn"
+                class="preview-nav-btn preview-nav-prev"
+                title="Previous image (←)"
+              >
+                ‹
+              </button>
+              <div class="preview-image-wrapper" id="previewImageWrapper">
+                <img id="previewImageOriginal" src="" alt="Original" />
+                <img id="previewImage" src="" alt="Preview" />
+                <div class="preview-comparison-slider">
+                  <div class="slider-line"></div>
+                  <div class="slider-handle">
+                    <span>◄</span>
+                    <span>►</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                id="nextImageBtn"
+                class="preview-nav-btn preview-nav-next"
+                title="Next image (→)"
+              >
+                ›
+              </button>
+            </div>
+            <div class="pdf-preview-footer">
+              <div class="preview-controls">
+                <div class="preview-quality-control">
+                  <label>Quality: <span id="previewQualityValue">0.80</span></label>
+                  <input
+                    type="range"
+                    id="previewQualitySlider"
+                    min="0.01"
+                    max="1.0"
+                    step="0.01"
+                    value="0.80"
+                  />
+                </div>
+                <button
+                  id="previewBgToggle"
+                  class="btn btn-secondary"
+                  title="Toggle background color"
+                >
+                  🎨 Background
+                </button>
+                <button
+                  id="previewCompareBtn"
+                  class="btn btn-secondary"
+                  title="Reset slider to center"
+                >
+                  Reset Slider
+                </button>
+                <button id="previewApplyBtn" class="btn btn-primary" title="Apply quality change">
+                  Apply
+                </button>
+                <span id="applyWarning" class="apply-warning" style="display: none"
+                  >← Click Apply to save</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <footer id="appFooter">
+          <!-- Footer Text -->
+          <div class="footer-text">
+            <p style="margin: 0">
+              Extension by <strong>William Harvey</strong>. Connect and DM on
+              <a
+                href="https://www.linkedin.com/in/williamharveyuk/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >LinkedIn</a
+              >
+              for issues or recommendations.
+            </p>
+          </div>
+          <!-- END Footer Text -->
+
+          <!-- Theme Controls -->
+          <div id="undoMessage" class="footer-message"></div>
+          <div class="theme-controls">
+            <label for="systemPrefCheckbox">
+              <input type="checkbox" id="systemPrefCheckbox" />
+              System
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkModeToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+            <label for="darkModeToggle">Dark Mode</label>
+          </div>
+          <!-- END Theme Controls -->
+
+          <!-- Action Buttons Container -->
+          <div class="footer-actions">
+            <button
+              id="compareBtn"
+              class="btn btn-secondary"
+              disabled
+              title="Compare with original (hold C key)"
+              style="display: none"
+            >
+              Compare
+            </button>
+            <button
+              id="undoBtn"
+              class="btn btn-secondary"
+              disabled
+              title="Undo last change (Ctrl+Z)"
+            >
+              Undo
+            </button>
+            <button
+              id="backToGalleryBtn"
+              class="btn btn-secondary"
+              style="display: none"
+              title="Return to PDF gallery"
+            >
+              ← Back to Gallery
+            </button>
+            <button
+              id="saveBtn"
+              class="btn btn-success btn-large"
+              disabled
+              title="Save image (Ctrl+S)"
+            >
+              Save Image
+            </button>
+            <button
+              id="savePdfBtn"
+              class="btn btn-success btn-large"
+              style="display: none"
+              disabled
+              title="Download optimized PDF"
+            >
+              Save PDF
+            </button>
+          </div>
+        </footer>
+        <!-- END Footer -->
+      </main>
+    </div>
+    <!-- /app-container -->
+
+    <!-- Configuration -->
+    <script type="module" src="config.js"></script>
+
+    <!-- PDF Libraries -->
+    <!-- PDF.js: https://github.com/mozilla/pdf.js/releases (need pdf.mjs and pdf.worker.mjs) -->
+    <!-- pdf-lib: For manipulating PDFs while preserving text -->
+    <script src="pdf-lib.min.js"></script>
+    <script type="module" src="pdf-init.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+
+    <!-- Image Compression Library -->
+    <script src="browser-image-compression.js"></script>
+
+    <script src="cropper.min.js"></script>
+    <script type="module" src="editor.js"></script>
+  </body>
+</html>

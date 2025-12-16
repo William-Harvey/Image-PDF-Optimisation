@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Minified files (third-party libraries)
+*.min.js
+*.min.css
+
+# Specific third-party files
+cropper.min.js
+cropper.min.css
+jspdf.umd.min.js
+pdf-lib.min.js
+browser-image-compression.js
+pdf.mjs
+pdf.worker.mjs
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
