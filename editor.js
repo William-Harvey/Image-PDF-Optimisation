@@ -1686,19 +1686,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!xObjects) continue;
 
-        console.log(`XObjects type on page ${pageNum}:`, xObjects.constructor.name, {
-          hasEntries: typeof xObjects.entries,
-          hasDict: 'dict' in xObjects,
-          hasKeys: typeof xObjects.keys,
-          methods: Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects)).slice(0, 15),
-        });
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects));
+        console.log(`XObjects on page ${pageNum}:`);
+        console.log(`  Type: ${xObjects.constructor.name}`);
+        console.log(`  hasEntries: ${typeof xObjects.entries}`);
+        console.log(`  hasDict: ${'dict' in xObjects}`);
+        console.log(`  hasKeys: ${typeof xObjects.keys}`);
+        console.log(`  Available methods: ${methods.join(', ')}`);
 
         // PDFDict.entries() returns array of [PDFName, PDFObject][]
         if (typeof xObjects.entries !== 'function') {
-          console.error(`XObjects missing entries() - cannot iterate`, {
-            constructor: xObjects?.constructor?.name,
-            availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects)),
-          });
+          console.error(`Cannot iterate - entries() not found. Available: ${methods.join(', ')}`);
           continue;
         }
 
