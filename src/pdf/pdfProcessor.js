@@ -3,7 +3,12 @@
  * Handles PDF image extraction and metadata
  */
 
-import { extractImages, getDocumentProxy, extractText } from '../../unpdf.bundle.mjs';
+import {
+  extractImages,
+  getDocumentProxy,
+  extractText,
+  getResolvedPDFJS,
+} from '../../unpdf.bundle.mjs';
 
 /**
  * Extract images from a PDF file
@@ -45,27 +50,73 @@ async function extractEmbeddedImages(buffer) {
     // Get document proxy first
     const pdf = await getDocumentProxy(buffer);
     const allImages = [];
+    let imageIndex = 0;
 
     // Extract images from each page
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const pageImages = await extractImages(pdf, pageNum);
+      const page = await pdf.getPage(pageNum);
 
-      // Convert each image to our format
-      pageImages.forEach((imgData, imgIndex) => {
-        const dataURL = createDataURLFromImageData(imgData);
-        allImages.push({
-          index: allImages.length,
-          dataURL,
-          originalSize: imgData.length || estimateDataURLSize(dataURL),
-          width: 0, // Width/height not available from raw data
-          height: 0,
-          pageNum,
-          imageName: `page-${pageNum}-image-${imgIndex + 1}`,
-          isOptimized: false,
-          optimizedDataURL: null,
-          optimizedSize: 0,
-        });
-      });
+      // CRITICAL: Render the page first to load all image objects into memory
+      // Without this, page.objs won't have the image data available
+      const viewport = page.getViewport({ scale: 1.0 });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+
+      // Now get the operator list to find images
+      const ops = await page.getOperatorList();
+      const { OPS } = await getResolvedPDFJS();
+
+      // Find image operations (paintImageXObject = "Do" operator for images)
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        if (ops.fnArray[i] === OPS.paintImageXObject) {
+          const imageName = ops.argsArray[i][0];
+
+          // Check if object exists
+          if (!page.objs.has(imageName)) {
+            console.warn(`Image "${imageName}" not found, skipping`);
+            continue;
+          }
+
+          // Get the image object (now loaded after rendering)
+          const image = page.objs.get(imageName);
+
+          if (image && image.bitmap) {
+            // Convert ImageBitmap to canvas
+            const extractCanvas = document.createElement('canvas');
+            extractCanvas.width = image.width;
+            extractCanvas.height = image.height;
+            const ctx = extractCanvas.getContext('2d', { alpha: true });
+            ctx.clearRect(0, 0, extractCanvas.width, extractCanvas.height);
+            ctx.drawImage(image.bitmap, 0, 0);
+
+            // Export as PNG to preserve transparency
+            const dataURL = extractCanvas.toDataURL('image/png', 1.0);
+
+            allImages.push({
+              index: imageIndex++,
+              dataURL,
+              originalSize: estimateDataURLSize(dataURL),
+              width: image.width,
+              height: image.height,
+              pageNum,
+              imageName: `page-${pageNum}-${imageName}`,
+              isOptimized: false,
+              optimizedDataURL: null,
+              optimizedSize: 0,
+            });
+          }
+        }
+      }
+
+      // Clean up
+      page.cleanup();
     }
 
     return allImages;
