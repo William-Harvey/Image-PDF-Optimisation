@@ -1686,18 +1686,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!xObjects) continue;
 
-        // Check if xObjects has entries method (PDFLib dictionary)
-        if (typeof xObjects.entries !== 'function') {
-          console.warn(`XObjects on page ${pageNum} does not have entries() method`, {
+        // Get the underlying dict Map from PDFDict
+        let xObjectsDict;
+        if (xObjects.dict && typeof xObjects.dict.entries === 'function') {
+          // pdf-lib PDFDict with .dict Map property
+          xObjectsDict = xObjects.dict;
+        } else if (typeof xObjects.entries === 'function') {
+          // Direct Map or object with entries()
+          xObjectsDict = xObjects;
+        } else {
+          console.warn(`XObjects on page ${pageNum} has unexpected structure`, {
             type: typeof xObjects,
             constructor: xObjects?.constructor?.name,
-            keys: Object.keys(xObjects || {}).slice(0, 5),
+            hasDict: 'dict' in xObjects,
           });
           continue;
         }
 
         // Check each XObject to see if it's an image
-        for (const [xObjKey, xObjRef] of xObjects.entries()) {
+        for (const [xObjKey, xObjRef] of xObjectsDict.entries()) {
           const xObjKeyName = xObjKey.decodeText ? xObjKey.decodeText() : xObjKey.encodedName;
           const xObj = pdfDoc.context.lookup(xObjRef);
 
