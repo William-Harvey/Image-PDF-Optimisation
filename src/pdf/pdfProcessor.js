@@ -73,33 +73,38 @@ async function extractEmbeddedImages(buffer) {
       const ops = await page.getOperatorList();
       const { OPS } = await getResolvedPDFJS();
 
-      // Find image operations (both XObject images and inline images)
+      // Find image operations (XObject images, inline images, and Form XObjects)
       for (let i = 0; i < ops.fnArray.length; i++) {
         const opCode = ops.fnArray[i];
 
         // paintImageXObject = "Do" operator for XObject images
         // paintInlineImageXObject = inline images (BI/ID/EI operators)
-        if (opCode === OPS.paintImageXObject || opCode === OPS.paintInlineImageXObject) {
+        // paintFormXObjectBegin = Form XObjects (vector graphics)
+        if (
+          opCode === OPS.paintImageXObject ||
+          opCode === OPS.paintInlineImageXObject ||
+          opCode === OPS.paintFormXObjectBegin
+        ) {
           const imageName = ops.argsArray[i][0];
 
           try {
             // Check if object exists (defensive check)
             if (page.objs.has && !page.objs.has(imageName)) {
-              console.warn(`Image "${imageName}" not found, skipping`);
+              console.warn(`Image/Form "${imageName}" not found, skipping`);
               continue;
             }
 
-            // Get the image object (now loaded after rendering)
-            const image = page.objs.get(imageName);
+            // Get the image or form object (now loaded after rendering)
+            const obj = page.objs.get(imageName);
 
-            if (image && image.bitmap) {
-              // Convert ImageBitmap to canvas
+            if (obj && obj.bitmap) {
+              // Raster image with bitmap
               const extractCanvas = document.createElement('canvas');
-              extractCanvas.width = image.width;
-              extractCanvas.height = image.height;
+              extractCanvas.width = obj.width;
+              extractCanvas.height = obj.height;
               const ctx = extractCanvas.getContext('2d', { alpha: true });
               ctx.clearRect(0, 0, extractCanvas.width, extractCanvas.height);
-              ctx.drawImage(image.bitmap, 0, 0);
+              ctx.drawImage(obj.bitmap, 0, 0);
 
               // Export as PNG to preserve transparency
               const dataURL = extractCanvas.toDataURL('image/png', 1.0);
@@ -108,18 +113,24 @@ async function extractEmbeddedImages(buffer) {
                 index: imageIndex++,
                 dataURL,
                 originalSize: estimateDataURLSize(dataURL),
-                width: image.width,
-                height: image.height,
+                width: obj.width,
+                height: obj.height,
                 pageNum,
                 imageName: `page-${pageNum}-${imageName}`,
                 isOptimized: false,
                 optimizedDataURL: null,
                 optimizedSize: 0,
               });
+            } else if (opCode === OPS.paintFormXObjectBegin && obj) {
+              // Form XObject (vector graphics) - needs to be rendered
+              console.log(`Found Form XObject "${imageName}" on page ${pageNum}, rendering...`);
+              // Form XObjects are rendered during page.render(), so they should already be in the canvas
+              // We can't extract them separately without re-rendering, so log and skip for now
+              // TODO: Implement Form XObject rendering to separate canvas
             }
           } catch (err) {
             console.warn(
-              `Failed to extract image "${imageName}" from page ${pageNum}:`,
+              `Failed to extract "${imageName}" from page ${pageNum}:`,
               err.message
             );
             // Continue to next image
