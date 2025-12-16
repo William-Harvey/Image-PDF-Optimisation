@@ -76,6 +76,9 @@ async function extractEmbeddedImages(buffer) {
       const ops = await page.getOperatorList();
       const { OPS } = await getResolvedPDFJS();
 
+      // Track which objects we've already extracted to avoid duplicates
+      const extractedObjects = new Set();
+
       // Track current transformation matrix for Form XObjects
       const transformStack = [[1, 0, 0, 1, 0, 0]]; // Identity matrix
       let currentTransform = transformStack[0];
@@ -183,6 +186,14 @@ async function extractEmbeddedImages(buffer) {
             `✓ Found ${opType} "${finalImageName}" on page ${pageNum}, opCode=${opCode}`
           );
 
+          // Skip if we've already extracted this object
+          if (extractedObjects.has(finalImageName)) {
+            console.log(
+              `  Skipping "${finalImageName}" - already extracted (likely FormXObject wrapping an image)`
+            );
+            continue;
+          }
+
           try {
             // Check if object exists (defensive check)
             if (page.objs.has && !page.objs.has(finalImageName)) {
@@ -220,6 +231,9 @@ async function extractEmbeddedImages(buffer) {
                 optimizedDataURL: null,
                 optimizedSize: 0,
               });
+
+              // Mark this object as extracted
+              extractedObjects.add(finalImageName);
             } else if (opCode === OPS.paintFormXObjectBegin) {
               // Form XObject (vector graphics) - extract from rendered page
               try {
@@ -286,6 +300,9 @@ async function extractEmbeddedImages(buffer) {
                   console.log(
                     `Extracted Form XObject "${finalImageName}" (${transformedWidth}x${transformedHeight}) from page ${pageNum}`
                   );
+
+                  // Mark this object as extracted
+                  extractedObjects.add(finalImageName);
                 }
               } catch (formErr) {
                 console.warn(`Could not extract Form XObject "${finalImageName}":`, formErr.message);
