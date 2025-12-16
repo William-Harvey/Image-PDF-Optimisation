@@ -1680,23 +1680,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!resources) continue;
 
         let xObjects = resources.get(window.PDFLib.PDFName.of('XObject'));
-        if (xObjects && xObjects.constructor.name === 'PDFRef') {
-          xObjects = pdfDoc.context.lookup(xObjects);
+
+        // If it's a reference or doesn't have entries(), try to look it up
+        if (xObjects && typeof xObjects.entries !== 'function') {
+          console.log(`XObject is not a dict (type: ${xObjects.constructor.name}), attempting lookup...`);
+          const lookedUp = pdfDoc.context.lookup(xObjects);
+          if (lookedUp && lookedUp !== xObjects) {
+            console.log(`  Looked up to type: ${lookedUp.constructor.name}`);
+            xObjects = lookedUp;
+          }
         }
 
         if (!xObjects) continue;
 
         const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects));
-        console.log(`XObjects on page ${pageNum}:`);
-        console.log(`  Type: ${xObjects.constructor.name}`);
-        console.log(`  hasEntries: ${typeof xObjects.entries}`);
-        console.log(`  hasDict: ${'dict' in xObjects}`);
-        console.log(`  hasKeys: ${typeof xObjects.keys}`);
-        console.log(`  Available methods: ${methods.join(', ')}`);
+        console.log(`XObjects final type: ${xObjects.constructor.name}, methods: ${methods.join(', ')}`);
 
         // PDFDict.entries() returns array of [PDFName, PDFObject][]
         if (typeof xObjects.entries !== 'function') {
-          console.error(`Cannot iterate - entries() not found. Available: ${methods.join(', ')}`);
+          console.error(`Still cannot iterate after lookup. Type: ${xObjects.constructor.name}`);
           continue;
         }
 
