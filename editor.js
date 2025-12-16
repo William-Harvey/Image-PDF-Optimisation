@@ -809,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
       throw new Error(
         mode === 'fullpages'
           ? 'Failed to render PDF pages.'
-          : 'No images found in PDF. This PDF may only contain vector graphics or text.'
+          : 'No embedded images found. Switch to "Full Pages" mode to render the PDF pages as images.'
       );
     }
 
