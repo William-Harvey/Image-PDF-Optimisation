@@ -118,6 +118,11 @@ async function extractEmbeddedImages(buffer) {
         ) {
           const imageName = ops.argsArray[i][0];
 
+          // Skip if imageName is not a valid string or has name property
+          if (!imageName || (typeof imageName !== 'string' && !imageName.name)) {
+            continue;
+          }
+
           try {
             // Check if object exists (defensive check)
             if (page.objs.has && !page.objs.has(imageName)) {
