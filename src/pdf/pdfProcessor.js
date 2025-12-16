@@ -3,7 +3,7 @@
  * Handles PDF image extraction and metadata
  */
 
-import { extractImages, getDocumentProxy, extractText } from 'unpdf';
+import { extractImages, getDocumentProxy, extractText } from '../../unpdf.mjs';
 
 /**
  * Extract images from a PDF file
