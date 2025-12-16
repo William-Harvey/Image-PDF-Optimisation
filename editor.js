@@ -156,41 +156,163 @@ document.addEventListener('DOMContentLoaded', () => {
   const darkModeToggle = document.getElementById('darkModeToggle');
   const systemPrefCheckbox = document.getElementById('systemPrefCheckbox');
 
-  // --- State ---
-  let cropper = null;
-  let originalImageDataURL = null;
-  let currentImageFilename = DEFAULTS.IMAGE_FILENAME;
-  let originalWidth = 0;
-  let originalHeight = 0;
-  let originalFileSize = 0;
-  let currentWidth = 0;
-  let currentHeight = 0;
-  let currentAspectRatio = DEFAULTS.ASPECT_RATIO;
-  let isCropping = false;
-  let originalZoomableOption = DEFAULTS.ZOOM_ENABLED;
-
-  // Uncompressed canvas storing all edits (crop, resize).
-  let masterCanvas = null;
+  // --- State Management ---
+  // All state is now managed through editorState (src/core/state.js)
+  // Using an adapter pattern for clean access to state properties
 
   // Undo stack - using HistoryManager for bounded memory
   const historyManager = new HistoryManager();
 
-  // Comparison mode state
-  let isComparingImages = false;
+  // State accessor object - provides clean get/set access to editorState
+  const state = {
+    // Image original properties
+    get originalImageDataURL() {
+      return editorState.get('image.original.dataURL');
+    },
+    set originalImageDataURL(value) {
+      editorState.set('image.original.dataURL', value);
+    },
+    get currentImageFilename() {
+      return editorState.get('image.original.filename');
+    },
+    set currentImageFilename(value) {
+      editorState.set('image.original.filename', value);
+    },
+    get originalWidth() {
+      return editorState.get('image.original.width');
+    },
+    set originalWidth(value) {
+      editorState.set('image.original.width', value);
+    },
+    get originalHeight() {
+      return editorState.get('image.original.height');
+    },
+    set originalHeight(value) {
+      editorState.set('image.original.height', value);
+    },
+    get originalFileSize() {
+      return editorState.get('image.original.fileSize');
+    },
+    set originalFileSize(value) {
+      editorState.set('image.original.fileSize', value);
+    },
 
-  // Aspect ratio for cropping
-  let currentAspectRatio_crop = CROP.ASPECT_FREE; // NaN = free, number = locked ratio
+    // Image current properties
+    get currentWidth() {
+      return editorState.get('image.current.width');
+    },
+    set currentWidth(value) {
+      editorState.set('image.current.width', value);
+    },
+    get currentHeight() {
+      return editorState.get('image.current.height');
+    },
+    set currentHeight(value) {
+      editorState.set('image.current.height', value);
+    },
+    get currentAspectRatio() {
+      return editorState.get('image.current.aspectRatio');
+    },
+    set currentAspectRatio(value) {
+      editorState.set('image.current.aspectRatio', value);
+    },
+    get masterCanvas() {
+      return editorState.get('image.current.canvas');
+    },
+    set masterCanvas(value) {
+      editorState.set('image.current.canvas', value);
+    },
 
-  // PDF state
-  let currentPdfFile = null;
-  let pdfDocument = null;
-  let pdfOriginalBytes = null; // Store original PDF for text preservation
-  let pdfImages = []; // Array of {index, dataURL, originalSize, optimizedDataURL, optimizedSize, width, height, pageNum, imageName}
-  let currentEditingImageIndex = null;
-  let currentPreviewIndex = 0; // For preview modal navigation
-  let isPreviewComparing = false; // For preview compare mode
-  let isPdfMode = false;
-  let previewBgMode = 'dark'; // Background mode for preview: 'dark', 'light', 'checkerboard'
+    // Cropper properties
+    get cropper() {
+      return editorState.get('image.cropper.instance');
+    },
+    set cropper(value) {
+      editorState.set('image.cropper.instance', value);
+    },
+    get isCropping() {
+      return editorState.get('image.cropper.isCropping');
+    },
+    set isCropping(value) {
+      editorState.set('image.cropper.isCropping', value);
+    },
+    get currentAspectRatio_crop() {
+      return editorState.get('image.cropper.aspectRatio');
+    },
+    set currentAspectRatio_crop(value) {
+      editorState.set('image.cropper.aspectRatio', value);
+    },
+    get originalZoomableOption() {
+      return editorState.get('image.cropper.zoomableOption');
+    },
+    set originalZoomableOption(value) {
+      editorState.set('image.cropper.zoomableOption', value);
+    },
+
+    // PDF properties
+    get currentPdfFile() {
+      return editorState.get('pdf.file');
+    },
+    set currentPdfFile(value) {
+      editorState.set('pdf.file', value);
+    },
+    get pdfDocument() {
+      return editorState.get('pdf.document');
+    },
+    set pdfDocument(value) {
+      editorState.set('pdf.document', value);
+    },
+    get pdfOriginalBytes() {
+      return editorState.get('pdf.originalBytes');
+    },
+    set pdfOriginalBytes(value) {
+      editorState.set('pdf.originalBytes', value);
+    },
+    get pdfImages() {
+      return editorState.get('pdf.images');
+    },
+    set pdfImages(value) {
+      editorState.set('pdf.images', value);
+    },
+    get currentEditingImageIndex() {
+      return editorState.get('pdf.currentEditingIndex');
+    },
+    set currentEditingImageIndex(value) {
+      editorState.set('pdf.currentEditingIndex', value);
+    },
+    get currentPreviewIndex() {
+      return editorState.get('pdf.currentPreviewIndex');
+    },
+    set currentPreviewIndex(value) {
+      editorState.set('pdf.currentPreviewIndex', value);
+    },
+    get isPdfMode() {
+      return editorState.get('pdf.mode');
+    },
+    set isPdfMode(value) {
+      editorState.set('pdf.mode', value);
+    },
+    get previewBgMode() {
+      return editorState.get('pdf.previewBgMode');
+    },
+    set previewBgMode(value) {
+      editorState.set('pdf.previewBgMode', value);
+    },
+    get isPreviewComparing() {
+      return editorState.get('pdf.isPreviewComparing');
+    },
+    set isPreviewComparing(value) {
+      editorState.set('pdf.isPreviewComparing', value);
+    },
+
+    // UI properties
+    get isComparingImages() {
+      return editorState.get('ui.comparing');
+    },
+    set isComparingImages(value) {
+      editorState.set('ui.comparing', value);
+    },
+  };
 
   // Initialize collapsible sections
   function initCollapsibleSections() {
@@ -308,8 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateCurrentDimsDisplay() {
-    if (currentDimsDisplay && currentWidth > 0 && currentHeight > 0) {
-      currentDimsDisplay.textContent = `${Math.round(currentWidth)} × ${Math.round(currentHeight)}px`;
+    if (currentDimsDisplay && state.currentWidth > 0 && state.currentHeight > 0) {
+      currentDimsDisplay.textContent = `${Math.round(state.currentWidth)} × ${Math.round(state.currentHeight)}px`;
     }
   }
 
@@ -377,8 +499,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const rawFilename = url.split('/').pop() || DEFAULTS.IMAGE_FILENAME;
-      currentImageFilename = sanitizeFilename(rawFilename);
-      fileNameDisplay.textContent = currentImageFilename;
+      state.currentImageFilename = sanitizeFilename(rawFilename);
+      fileNameDisplay.textContent = state.currentImageFilename;
 
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -400,13 +522,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleImageLoad(dataURL, fileSize) {
-    originalImageDataURL = dataURL;
-    originalFileSize = fileSize;
-    originalFileSizeEl.textContent = formatBytes(originalFileSize);
+    state.originalImageDataURL = dataURL;
+    state.originalFileSize = fileSize;
+    state.originalFileSizeEl.textContent = formatBytes(state.originalFileSize);
 
     try {
-      await loadImageOntoEditableImage(originalImageDataURL, true);
-      masterCanvas = await createFullCanvasFromImage(originalImageDataURL);
+      await loadImageOntoEditableImage(state.originalImageDataURL, true);
+      state.masterCanvas = await createFullCanvasFromImage(state.originalImageDataURL);
       resetQualitySliderToMax();
       resetUIState();
       updateEstimatedSize();
@@ -414,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCompareButton();
       showLoading(false);
       announceToScreenReader(
-        `Image loaded: ${currentImageFilename}, ${originalWidth} by ${originalHeight} pixels`
+        `Image loaded: ${state.currentImageFilename}, ${state.originalWidth} by ${state.originalHeight} pixels`
       );
     } catch (err) {
       console.error('Error loading image:', err);
@@ -510,8 +632,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    currentImageFilename = sanitizeFilename(file.name);
-    fileNameDisplay.textContent = currentImageFilename;
+    state.currentImageFilename = sanitizeFilename(file.name);
+    fileNameDisplay.textContent = state.currentImageFilename;
     showLoading(true);
 
     const reader = new FileReader();
@@ -569,8 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = files[0];
         if (!validateImageFileAndShow(file)) return;
 
-        currentImageFilename = sanitizeFilename(file.name);
-        fileNameDisplay.textContent = currentImageFilename;
+        state.currentImageFilename = sanitizeFilename(file.name);
+        fileNameDisplay.textContent = state.currentImageFilename;
         showLoading(true);
 
         const reader = new FileReader();
@@ -600,8 +722,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const blob = items[i].getAsFile();
         if (!validateImageFileAndShow(blob)) return;
 
-        currentImageFilename = sanitizeFilename(`pasted-image-${Date.now()}.png`);
-        fileNameDisplay.textContent = currentImageFilename;
+        state.currentImageFilename = sanitizeFilename(`pasted-image-${Date.now()}.png`);
+        fileNameDisplay.textContent = state.currentImageFilename;
         showLoading(true);
 
         const reader = new FileReader();
@@ -636,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    currentPdfFile = file;
+    state.currentPdfFile = file;
     fileNameDisplay.textContent = file.name;
 
     // Get extraction mode
@@ -663,8 +785,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Store original PDF bytes for rebuilding
     const arrayBuffer = await file.arrayBuffer();
-    pdfOriginalBytes = new Uint8Array(arrayBuffer).slice();
-    console.log(`Stored original PDF: ${pdfOriginalBytes.length} bytes`);
+    state.pdfOriginalBytes = new Uint8Array(arrayBuffer).slice();
+    console.log(`Stored original PDF: ${state.pdfOriginalBytes.length} bytes`);
 
     // Get PDF metadata
     const metadata = await getPdfMetadata(file);
@@ -681,9 +803,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Extract images using unpdf
-    pdfImages = await extractPdfImages(file, mode);
+    state.pdfImages = await extractPdfImages(file, mode);
 
-    if (pdfImages.length === 0) {
+    if (state.pdfImages.length === 0) {
       throw new Error(
         mode === 'fullpages'
           ? 'Failed to render PDF pages.'
@@ -692,14 +814,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     console.log(
-      `Extracted ${pdfImages.length} ${mode === 'fullpages' ? 'pages' : 'images'} using unpdf`
+      `Extracted ${state.pdfImages.length} ${mode === 'fullpages' ? 'pages' : 'images'} using unpdf`
     );
-    pdfImageCount.textContent = pdfImages.length;
-    galleryImageCount.textContent = pdfImages.length;
+    pdfImageCount.textContent = state.pdfImages.length;
+    galleryImageCount.textContent = state.pdfImages.length;
     renderPdfGallery();
 
     // Show preview button after extraction
-    if (previewAllBtn && pdfImages.length > 0) {
+    if (previewAllBtn && state.pdfImages.length > 0) {
       previewAllBtn.style.display = 'block';
     }
 
@@ -707,10 +829,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderPdfGallery() {
-    console.log('renderPdfGallery called. Number of images:', pdfImages.length);
+    console.log('renderPdfGallery called. Number of images:', state.pdfImages.length);
     pdfImageGrid.innerHTML = '';
 
-    pdfImages.forEach((img, idx) => {
+    state.pdfImages.forEach((img, idx) => {
       const imageSrc = img.optimizedDataURL || img.dataURL;
       console.log(`Image ${idx}:`, {
         isOptimized: img.isOptimized,
@@ -756,25 +878,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updatePdfOptimizedSize() {
     let totalOptimized = 0;
-    pdfImages.forEach((img) => {
+    state.pdfImages.forEach((img) => {
       totalOptimized += img.optimizedSize || img.originalSize;
     });
     pdfOptimizedSize.textContent = formatBytes(totalOptimized);
 
-    const optimizedCount = pdfImages.filter((img) => img.isOptimized).length;
-    const allOptimized = pdfImages.every((img) => img.isOptimized);
+    const optimizedCount = state.pdfImages.filter((img) => img.isOptimized).length;
+    const allOptimized = state.pdfImages.every((img) => img.isOptimized);
 
     // Always enable save button, but update text to show progress
     savePdfBtn.disabled = false;
     if (allOptimized) {
-      savePdfBtn.textContent = `Save Optimized PDF (${pdfImages.length}/${pdfImages.length})`;
+      savePdfBtn.textContent = `Save Optimized PDF (${state.pdfImages.length}/${state.pdfImages.length})`;
     } else {
-      savePdfBtn.textContent = `Save PDF (${optimizedCount}/${pdfImages.length} optimized)`;
+      savePdfBtn.textContent = `Save PDF (${optimizedCount}/${state.pdfImages.length} optimized)`;
     }
   }
 
   function showPdfGallery() {
-    isPdfMode = true;
+    state.isPdfMode = true;
     placeholderText.style.display = 'none';
     pdfGallery.style.display = 'block';
     imageWrapper.style.display = 'none';
@@ -795,13 +917,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function editPdfImage(index) {
-    currentEditingImageIndex = index;
-    const img = pdfImages[index];
+    state.currentEditingImageIndex = index;
+    const img = state.pdfImages[index];
 
     showLoading(true);
     try {
-      currentImageFilename = `page-${img.pageNum}.png`;
-      fileNameDisplay.textContent = `Editing: ${currentImageFilename}`;
+      state.currentImageFilename = `page-${img.pageNum}.png`;
+      fileNameDisplay.textContent = `Editing: ${state.currentImageFilename}`;
 
       await handleImageLoad(img.dataURL, img.originalSize);
 
@@ -836,39 +958,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   backToGalleryBtn?.addEventListener('click', async () => {
     console.log(
-      'Back to Gallery clicked. currentEditingImageIndex:',
-      currentEditingImageIndex,
-      'masterCanvas exists:',
-      !!masterCanvas
+      'Back to Gallery clicked. state.currentEditingImageIndex:',
+      state.currentEditingImageIndex,
+      'state.masterCanvas exists:',
+      !!state.masterCanvas
     );
 
-    if (currentEditingImageIndex !== null && masterCanvas) {
+    if (state.currentEditingImageIndex !== null && state.masterCanvas) {
       showLoading(true);
       try {
         const format = getCurrentFormat();
         const quality = getCurrentQuality();
-        const optimizedDataURL = masterCanvas.toDataURL(format, quality);
+        const optimizedDataURL = state.masterCanvas.toDataURL(format, quality);
         const optimizedSize = await getBlobSizeFromDataURL(optimizedDataURL);
 
         console.log(
           'Saving image at index',
-          currentEditingImageIndex,
+          state.currentEditingImageIndex,
           'Size:',
           optimizedSize,
           'isOptimized: true'
         );
 
-        pdfImages[currentEditingImageIndex].optimizedDataURL = optimizedDataURL;
-        pdfImages[currentEditingImageIndex].optimizedSize = optimizedSize;
-        pdfImages[currentEditingImageIndex].isOptimized = true;
-        pdfImages[currentEditingImageIndex].previewQuality = quality;
-        pdfImages[currentEditingImageIndex].width = masterCanvas.width;
-        pdfImages[currentEditingImageIndex].height = masterCanvas.height;
+        state.pdfImages[state.currentEditingImageIndex].optimizedDataURL = optimizedDataURL;
+        state.pdfImages[state.currentEditingImageIndex].optimizedSize = optimizedSize;
+        state.pdfImages[state.currentEditingImageIndex].isOptimized = true;
+        state.pdfImages[state.currentEditingImageIndex].previewQuality = quality;
+        state.pdfImages[state.currentEditingImageIndex].width = state.masterCanvas.width;
+        state.pdfImages[state.currentEditingImageIndex].height = state.masterCanvas.height;
 
-        console.log('Saved pdfImages[' + currentEditingImageIndex + ']:', {
-          isOptimized: pdfImages[currentEditingImageIndex].isOptimized,
-          optimizedSize: pdfImages[currentEditingImageIndex].optimizedSize,
-          hasOptimizedDataURL: !!pdfImages[currentEditingImageIndex].optimizedDataURL,
+        console.log('Saved state.pdfImages[' + state.currentEditingImageIndex + ']:', {
+          isOptimized: state.pdfImages[state.currentEditingImageIndex].isOptimized,
+          optimizedSize: state.pdfImages[state.currentEditingImageIndex].optimizedSize,
+          hasOptimizedDataURL: !!state.pdfImages[state.currentEditingImageIndex].optimizedDataURL,
         });
 
         renderPdfGallery();
@@ -878,13 +1000,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       showLoading(false);
     } else {
-      console.log('Skipping save - no edits detected or masterCanvas is null');
+      console.log('Skipping save - no edits detected or state.masterCanvas is null');
     }
 
-    currentEditingImageIndex = null;
+    state.currentEditingImageIndex = null;
     clearAll();
     showPdfGallery();
-    fileNameDisplay.textContent = currentPdfFile.name;
+    fileNameDisplay.textContent = state.currentPdfFile.name;
   });
 
   // Check if an image has transparency (alpha channel)
@@ -967,8 +1089,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Always re-optimize all images with current settings (allow quality adjustments)
-      for (let i = 0; i < pdfImages.length; i++) {
-        const img = pdfImages[i];
+      for (let i = 0; i < state.pdfImages.length; i++) {
+        const img = state.pdfImages[i];
 
         // Check for transparency and choose format accordingly
         const hasAlpha = await hasTransparency(img.dataURL);
@@ -1015,22 +1137,22 @@ document.addEventListener('DOMContentLoaded', () => {
           areURLsSame: optimizedDataURL === img.dataURL,
         });
 
-        pdfImages[i].optimizedDataURL = optimizedDataURL;
-        pdfImages[i].optimizedSize = optimizedSize;
-        pdfImages[i].isOptimized = true;
-        pdfImages[i].previewQuality = quality;
-        pdfImages[i].width = imgWidth;
-        pdfImages[i].height = imgHeight;
+        state.pdfImages[i].optimizedDataURL = optimizedDataURL;
+        state.pdfImages[i].optimizedSize = optimizedSize;
+        state.pdfImages[i].isOptimized = true;
+        state.pdfImages[i].previewQuality = quality;
+        state.pdfImages[i].width = imgWidth;
+        state.pdfImages[i].height = imgHeight;
       }
 
       renderPdfGallery();
       const avgReduction = Math.round(
         (1 -
-          pdfImages.reduce((sum, img) => sum + img.optimizedSize, 0) /
-            pdfImages.reduce((sum, img) => sum + img.originalSize, 0)) *
+          state.pdfImages.reduce((sum, img) => sum + img.optimizedSize, 0) /
+            state.pdfImages.reduce((sum, img) => sum + img.originalSize, 0)) *
           100
       );
-      showSuccess(`All ${pdfImages.length} images optimized (${avgReduction}% reduction)`);
+      showSuccess(`All ${state.pdfImages.length} images optimized (${avgReduction}% reduction)`);
 
       // Show preview button after optimization
       if (previewAllBtn) {
@@ -1046,12 +1168,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // PDF Preview Modal Functions
   async function showPreviewModal(index) {
-    currentPreviewIndex = index;
+    state.currentPreviewIndex = index;
     await updatePreviewDisplay();
 
     // Set initial background
     if (previewImageWrapper) {
-      previewImageWrapper.className = 'preview-image-wrapper bg-' + previewBgMode;
+      previewImageWrapper.className = 'preview-image-wrapper bg-' + state.previewBgMode;
     }
 
     if (pdfPreviewModal) {
@@ -1066,9 +1188,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function updatePreviewDisplay() {
-    if (!pdfImages[currentPreviewIndex]) return;
+    if (!state.pdfImages[state.currentPreviewIndex]) return;
 
-    const img = pdfImages[currentPreviewIndex];
+    const img = state.pdfImages[state.currentPreviewIndex];
 
     // If image hasn't been optimized yet, create an initial preview at default quality
     if (!img.optimizedDataURL) {
@@ -1078,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasAlpha = await hasTransparency(img.dataURL);
         const selectedFormat = hasAlpha ? 'image/png' : 'image/jpeg';
         console.log(
-          `Preview ${currentPreviewIndex}: ${hasAlpha ? 'has transparency, using PNG' : 'opaque, using JPEG'}`
+          `Preview ${state.currentPreviewIndex}: ${hasAlpha ? 'has transparency, using PNG' : 'opaque, using JPEG'}`
         );
 
         const canvas = await createFullCanvasFromImage(img.dataURL);
@@ -1095,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const imageSrc = img.optimizedDataURL || img.tempPreviewDataURL || img.dataURL;
 
-    console.log('Preview image', currentPreviewIndex, {
+    console.log('Preview image', state.currentPreviewIndex, {
       isOptimized: img.isOptimized,
       hasOptimizedDataURL: !!img.optimizedDataURL,
       hasTempPreview: !!img.tempPreviewDataURL,
@@ -1134,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update info
     if (previewImageNumber) {
-      previewImageNumber.textContent = `Image ${currentPreviewIndex + 1} of ${pdfImages.length}`;
+      previewImageNumber.textContent = `Image ${state.currentPreviewIndex + 1} of ${state.pdfImages.length}`;
     }
 
     if (previewImageSize) {
@@ -1151,17 +1273,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update navigation buttons
     if (prevImageBtn) {
-      prevImageBtn.disabled = currentPreviewIndex === 0;
+      prevImageBtn.disabled = state.currentPreviewIndex === 0;
     }
     if (nextImageBtn) {
-      nextImageBtn.disabled = currentPreviewIndex === pdfImages.length - 1;
+      nextImageBtn.disabled = state.currentPreviewIndex === state.pdfImages.length - 1;
     }
   }
 
   async function navigatePreview(direction) {
-    const newIndex = currentPreviewIndex + direction;
-    if (newIndex >= 0 && newIndex < pdfImages.length) {
-      currentPreviewIndex = newIndex;
+    const newIndex = state.currentPreviewIndex + direction;
+    if (newIndex >= 0 && newIndex < state.pdfImages.length) {
+      state.currentPreviewIndex = newIndex;
       await updatePreviewDisplay();
     }
   }
@@ -1178,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   editFromPreviewBtn?.addEventListener('click', () => {
     hidePreviewModal();
-    editPdfImage(currentPreviewIndex);
+    editPdfImage(state.currentPreviewIndex);
   });
 
   // Preview quality slider - live preview
@@ -1197,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Debounce the live preview to avoid too many re-renders
     clearTimeout(previewDebounceTimer);
     previewDebounceTimer = setTimeout(async () => {
-      const img = pdfImages[currentPreviewIndex];
+      const img = state.pdfImages[state.currentPreviewIndex];
       if (!img) return;
 
       try {
@@ -1231,20 +1353,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Preview background toggle
   previewBgToggle?.addEventListener('click', () => {
     // Cycle through backgrounds: dark -> light -> checkerboard -> dark
-    if (previewBgMode === 'dark') {
-      previewBgMode = 'light';
-    } else if (previewBgMode === 'light') {
-      previewBgMode = 'checkerboard';
+    if (state.previewBgMode === 'dark') {
+      state.previewBgMode = 'light';
+    } else if (state.previewBgMode === 'light') {
+      state.previewBgMode = 'checkerboard';
     } else {
-      previewBgMode = 'dark';
+      state.previewBgMode = 'dark';
     }
 
     // Update the wrapper classes
     if (previewImageWrapper) {
-      previewImageWrapper.className = 'preview-image-wrapper bg-' + previewBgMode;
+      previewImageWrapper.className = 'preview-image-wrapper bg-' + state.previewBgMode;
     }
 
-    console.log('Preview background changed to:', previewBgMode);
+    console.log('Preview background changed to:', state.previewBgMode);
   });
 
   // Preview compare button - resets slider to center and quality to default
@@ -1283,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Preview apply button
   previewApplyBtn?.addEventListener('click', async () => {
-    const img = pdfImages[currentPreviewIndex];
+    const img = state.pdfImages[state.currentPreviewIndex];
     if (!img) return;
 
     const quality = parseFloat(previewQualitySlider.value);
@@ -1303,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasAlpha = await hasTransparency(img.dataURL);
       const selectedFormat = hasAlpha ? 'image/png' : 'image/jpeg';
       console.log(
-        `Apply: Image ${currentPreviewIndex} - ${hasAlpha ? 'has transparency, using PNG' : 'opaque, using JPEG'}`
+        `Apply: Image ${state.currentPreviewIndex} - ${hasAlpha ? 'has transparency, using PNG' : 'opaque, using JPEG'}`
       );
 
       let optimizedDataURL;
@@ -1333,20 +1455,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const optimizedSize = await getBlobSizeFromDataURL(optimizedDataURL);
 
-      console.log(`Preview: Applied quality ${quality} to image ${currentPreviewIndex}`, {
+      console.log(`Preview: Applied quality ${quality} to image ${state.currentPreviewIndex}`, {
         format: selectedFormat,
         originalSize: img.originalSize,
         newOptimizedSize: optimizedSize,
         reduction: Math.round((1 - optimizedSize / img.originalSize) * 100) + '%',
       });
 
-      // Update the pdfImages array
-      pdfImages[currentPreviewIndex].optimizedDataURL = optimizedDataURL;
-      pdfImages[currentPreviewIndex].optimizedSize = optimizedSize;
-      pdfImages[currentPreviewIndex].isOptimized = true;
-      pdfImages[currentPreviewIndex].previewQuality = quality;
-      pdfImages[currentPreviewIndex].width = imgWidth;
-      pdfImages[currentPreviewIndex].height = imgHeight;
+      // Update the state.pdfImages array
+      state.pdfImages[state.currentPreviewIndex].optimizedDataURL = optimizedDataURL;
+      state.pdfImages[state.currentPreviewIndex].optimizedSize = optimizedSize;
+      state.pdfImages[state.currentPreviewIndex].isOptimized = true;
+      state.pdfImages[state.currentPreviewIndex].previewQuality = quality;
+      state.pdfImages[state.currentPreviewIndex].width = imgWidth;
+      state.pdfImages[state.currentPreviewIndex].height = imgHeight;
 
       // Refresh the gallery and preview display
       renderPdfGallery();
@@ -1456,7 +1578,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoading(true);
     try {
       // Check if we're in full page mode (pages were rendered, not just images extracted)
-      const isFullPageMode = pdfImages.length > 0 && pdfImages[0].imageName.startsWith('page_');
+      const isFullPageMode =
+        state.pdfImages.length > 0 && state.pdfImages[0].imageName.startsWith('page_');
 
       if (isFullPageMode) {
         // Full page mode: create new PDF from rendered pages
@@ -1470,17 +1593,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'px',
-          format: [pdfImages[0].width, pdfImages[0].height],
+          format: [state.pdfImages[0].width, state.pdfImages[0].height],
         });
 
         // Add first page
-        const firstImg = pdfImages[0];
+        const firstImg = state.pdfImages[0];
         const imgData = firstImg.optimizedDataURL || firstImg.dataURL;
         pdf.addImage(imgData, 'PNG', 0, 0, firstImg.width, firstImg.height);
 
         // Add remaining pages
-        for (let i = 1; i < pdfImages.length; i++) {
-          const img = pdfImages[i];
+        for (let i = 1; i < state.pdfImages.length; i++) {
+          const img = state.pdfImages[i];
           const pageImgData = img.optimizedDataURL || img.dataURL;
           pdf.addPage([img.width, img.height], img.width > img.height ? 'landscape' : 'portrait');
           pdf.addImage(pageImgData, 'PNG', 0, 0, img.width, img.height);
@@ -1491,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = currentPdfFile.name.replace('.pdf', '_optimized.pdf');
+        a.download = state.currentPdfFile.name.replace('.pdf', '_optimized.pdf');
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1512,29 +1635,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.log('Loading original PDF for modification...');
 
-      // Debug: Check pdfOriginalBytes status
-      console.log('pdfOriginalBytes type:', typeof pdfOriginalBytes);
-      console.log('pdfOriginalBytes is null?', pdfOriginalBytes === null);
-      console.log('pdfOriginalBytes is undefined?', pdfOriginalBytes === undefined);
-      if (pdfOriginalBytes) {
-        console.log('pdfOriginalBytes length:', pdfOriginalBytes.length);
-        console.log('pdfOriginalBytes constructor:', pdfOriginalBytes.constructor.name);
+      // Debug: Check state.pdfOriginalBytes status
+      console.log('state.pdfOriginalBytes type:', typeof state.pdfOriginalBytes);
+      console.log('state.pdfOriginalBytes is null?', state.pdfOriginalBytes === null);
+      console.log('state.pdfOriginalBytes is undefined?', state.pdfOriginalBytes === undefined);
+      if (state.pdfOriginalBytes) {
+        console.log('state.pdfOriginalBytes length:', state.pdfOriginalBytes.length);
+        console.log('state.pdfOriginalBytes constructor:', state.pdfOriginalBytes.constructor.name);
       }
 
       // Verify we have the original PDF bytes
-      if (!pdfOriginalBytes || pdfOriginalBytes.length === 0) {
+      if (!state.pdfOriginalBytes || state.pdfOriginalBytes.length === 0) {
         throw new Error('Original PDF data not available');
       }
-      console.log(`Original PDF size: ${pdfOriginalBytes.length} bytes`);
+      console.log(`Original PDF size: ${state.pdfOriginalBytes.length} bytes`);
 
       // Load the PDF - we'll modify it in place at the stream level
-      const pdfDoc = await window.PDFLib.PDFDocument.load(pdfOriginalBytes);
+      const pdfDoc = await window.PDFLib.PDFDocument.load(state.pdfOriginalBytes);
 
       console.log('Matching images by page and dimensions...');
 
       // Group images by page for matching
       const imagesByPage = new Map();
-      for (const img of pdfImages) {
+      for (const img of state.pdfImages) {
         if (!imagesByPage.has(img.pageNum)) {
           imagesByPage.set(img.pageNum, []);
         }
@@ -1755,7 +1878,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const a = document.createElement('a');
       a.href = url;
-      const originalName = currentPdfFile.name.replace('.pdf', '');
+      const originalName = state.currentPdfFile.name.replace('.pdf', '');
       a.download = `${originalName}-optimized.pdf`;
       document.body.appendChild(a);
       a.click();
@@ -1764,7 +1887,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Calculate actual saved size
       const savedSize = pdfBytes.length;
-      const originalSize = pdfOriginalBytes.length;
+      const originalSize = state.pdfOriginalBytes.length;
       const reduction = Math.round((1 - savedSize / originalSize) * 100);
 
       showSuccess(
@@ -1816,20 +1939,22 @@ document.addEventListener('DOMContentLoaded', () => {
       imageWrapper.style.overflow = 'hidden';
 
       editableImage.onload = () => {
-        currentWidth = editableImage.naturalWidth;
-        currentHeight = editableImage.naturalHeight;
-        currentAspectRatio =
-          currentHeight > 0 && currentWidth > 0 ? currentWidth / currentHeight : 1;
+        state.currentWidth = editableImage.naturalWidth;
+        state.currentHeight = editableImage.naturalHeight;
+        state.currentAspectRatio =
+          state.currentHeight > 0 && state.currentWidth > 0
+            ? state.currentWidth / state.currentHeight
+            : 1;
 
         if (isInitialLoad) {
-          originalWidth = currentWidth;
-          originalHeight = currentHeight;
+          state.originalWidth = state.currentWidth;
+          state.originalHeight = state.currentHeight;
         }
         updateDimensionDisplays();
 
-        if (currentWidth > 0 && currentHeight > 0) {
-          imageWrapper.style.width = `${currentWidth}px`;
-          imageWrapper.style.height = `${currentHeight}px`;
+        if (state.currentWidth > 0 && state.currentHeight > 0) {
+          imageWrapper.style.width = `${state.currentWidth}px`;
+          imageWrapper.style.height = `${state.currentHeight}px`;
         } else {
           imageWrapper.style.width = 'auto';
           imageWrapper.style.height = 'auto';
@@ -1837,7 +1962,7 @@ document.addEventListener('DOMContentLoaded', () => {
           editableImage.style.maxHeight = '100%';
         }
         // Only show imageWrapper if comparison mode is not active
-        if (!isComparingImages) {
+        if (!state.isComparingImages) {
           imageWrapper.style.display = 'block';
         }
         editableImage.style.display = 'block';
@@ -1861,10 +1986,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function initCropper() {
     if (!editableImage.complete || imageWrapper.offsetWidth <= 0) return;
-    if (cropper) destroyCropper();
+    if (state.cropper) destroyCropper();
 
     try {
-      cropper = new Cropper(editableImage, {
+      state.cropper = new Cropper(editableImage, {
         viewMode: 0,
         dragMode: 'move',
         autoCrop: false,
@@ -1879,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', () => {
         movable: true,
         rotatable: true,
         scalable: true,
-        zoomable: originalZoomableOption,
+        zoomable: state.originalZoomableOption,
         zoomOnWheel: true,
         wheelZoomRatio: 0.1,
         zoomOnTouch: true,
@@ -1898,12 +2023,12 @@ document.addEventListener('DOMContentLoaded', () => {
         crop: handleCrop,
         ready() {
           console.log('Cropper ready.');
-          cropper.disable();
-          cropper.setDragMode('move');
-          if (typeof originalZoomableOption === 'undefined') {
-            originalZoomableOption = cropper.options.zoomable;
+          state.cropper.disable();
+          state.cropper.setDragMode('move');
+          if (typeof state.originalZoomableOption === 'undefined') {
+            state.originalZoomableOption = state.cropper.options.zoomable;
           } else {
-            cropper.options.zoomable = originalZoomableOption;
+            state.cropper.options.zoomable = state.originalZoomableOption;
           }
         },
       });
@@ -1917,11 +2042,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function destroyCropper() {
-    if (cropper) {
+    if (state.cropper) {
       try {
-        cropper.destroy();
+        state.cropper.destroy();
       } catch (e) {}
-      cropper = null;
+      state.cropper = null;
     }
     if (cropSizeDisplay) {
       cropSizeDisplay.style.display = 'none';
@@ -1933,16 +2058,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------------------------
   function handleCropStart(event) {
     console.log('Crop start', event.detail.action);
-    if (!cropper) return;
+    if (!state.cropper) return;
     handleCropMove();
     if (cropSizeDisplay) cropSizeDisplay.style.display = 'block';
   }
 
   function handleCropMove() {
-    if (!cropper || !cropSizeDisplay) return;
+    if (!state.cropper || !cropSizeDisplay) return;
     try {
-      const data = cropper.getData(true);
-      const cropBoxData = cropper.getCropBoxData();
+      const data = state.cropper.getData(true);
+      const cropBoxData = state.cropper.getCropBoxData();
 
       cropSizeDisplay.textContent = `${data.width} x ${data.height} px`;
 
@@ -1982,8 +2107,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handleCrop() {
-    if (!cropper) return;
-    const data = cropper.getData(true);
+    if (!state.cropper) return;
+    const data = state.cropper.getData(true);
     const isValidCrop = data.width > 0 && data.height > 0;
     if (applyCropBtn) {
       applyCropBtn.disabled = !isValidCrop;
@@ -1994,22 +2119,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // APPLY CROP / RESIZE => MASTER CANVAS
   // --------------------------------------------------------------------------------------------
   startCropBtn.addEventListener('click', () => {
-    if (!cropper) return;
-    cropper.enable();
-    cropper.setDragMode('crop');
-    cropper.setAspectRatio(currentAspectRatio_crop);
-    isCropping = true;
+    if (!state.cropper) return;
+    state.cropper.enable();
+    state.cropper.setDragMode('crop');
+    state.cropper.setAspectRatio(state.state.currentAspectRatio_crop);
+    state.isCropping = true;
     applyCropBtn.disabled = true;
     cancelCropBtn.disabled = false;
-    cropper.options.zoomable = false;
+    state.cropper.options.zoomable = false;
   });
 
   applyCropBtn.addEventListener('click', async () => {
-    if (!cropper || !isCropping) return;
+    if (!state.cropper || !state.isCropping) return;
     showLoading(true);
     try {
       pushStateToHistory(); // Store state before crop
-      const croppedCanvas = cropper.getCroppedCanvas();
+      const croppedCanvas = state.cropper.getCroppedCanvas();
       if (!croppedCanvas) {
         notificationService.warning('No valid crop area.');
         return;
@@ -2017,12 +2142,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const newWidth = croppedCanvas.width; // Use actual cropped size
       const newHeight = croppedCanvas.height; // Ignore resize fields
 
-      masterCanvas = document.createElement('canvas');
-      masterCanvas.width = newWidth;
-      masterCanvas.height = newHeight;
-      masterCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
+      state.masterCanvas = document.createElement('canvas');
+      state.masterCanvas.width = newWidth;
+      state.masterCanvas.height = newHeight;
+      state.masterCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0);
 
-      // Re-encode from masterCanvas => refresh display
+      // Re-encode from state.masterCanvas => refresh display
       await refreshMainPreviewFromMasterCanvas();
 
       // Now that we've effectively changed the image size:
@@ -2034,9 +2159,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error applying crop:', err);
       notificationService.error('Could not apply crop.');
     } finally {
-      cropper.disable();
-      cropper.setDragMode('move');
-      isCropping = false;
+      state.cropper.disable();
+      state.cropper.setDragMode('move');
+      state.isCropping = false;
       applyCropBtn.disabled = true;
       cancelCropBtn.disabled = true;
       showLoading(false);
@@ -2045,23 +2170,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   cancelCropBtn.addEventListener('click', () => {
-    if (!cropper) return;
-    cropper.disable();
-    cropper.setDragMode('move');
-    isCropping = false;
+    if (!state.cropper) return;
+    state.cropper.disable();
+    state.cropper.setDragMode('move');
+    state.isCropping = false;
     applyCropBtn.disabled = true;
     cancelCropBtn.disabled = true;
-    cropper.options.zoomable = originalZoomableOption;
+    state.cropper.options.zoomable = state.originalZoomableOption;
     resetUIState();
   });
 
   applyResizeBtn.addEventListener('click', async () => {
-    if (!cropper) return;
+    if (!state.cropper) return;
     showLoading(true);
     try {
       pushStateToHistory(); // Store state before resize
 
-      const croppedCanvas = cropper.getCroppedCanvas();
+      const croppedCanvas = state.cropper.getCroppedCanvas();
       if (!croppedCanvas) {
         notificationService.warning('Cannot resize because no valid image is loaded.');
         return;
@@ -2069,10 +2194,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const newWidth = parseInt(resizeWidthInput.value, 10) || croppedCanvas.width;
       const newHeight = parseInt(resizeHeightInput.value, 10) || croppedCanvas.height;
 
-      masterCanvas = document.createElement('canvas');
-      masterCanvas.width = newWidth;
-      masterCanvas.height = newHeight;
-      masterCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0, newWidth, newHeight);
+      state.masterCanvas = document.createElement('canvas');
+      state.masterCanvas.width = newWidth;
+      state.masterCanvas.height = newHeight;
+      state.masterCanvas.getContext('2d').drawImage(croppedCanvas, 0, 0, newWidth, newHeight);
 
       await refreshMainPreviewFromMasterCanvas();
       showSuccess(`Resized to ${newWidth} × ${newHeight}px`);
@@ -2085,18 +2210,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Re-encode from masterCanvas using the currently selected format & quality
+  // Re-encode from state.masterCanvas using the currently selected format & quality
   async function refreshMainPreviewFromMasterCanvas() {
-    if (!masterCanvas) return;
+    if (!state.masterCanvas) return;
     const format = getCurrentFormat();
     const quality = getCurrentQuality();
 
-    const newDataUrl = masterCanvas.toDataURL(format, quality);
+    const newDataUrl = state.masterCanvas.toDataURL(format, quality);
     await loadImageOntoEditableImage(newDataUrl, false);
     updateEstimatedSize();
 
     // Update comparison view if active (edited is now on the left)
-    if (isComparingImages && originalImagePreview) {
+    if (state.isComparingImages && originalImagePreview) {
       originalImagePreview.src = newDataUrl;
     }
   }
@@ -2112,14 +2237,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const aspectValue = btn.getAttribute('data-aspect');
       if (aspectValue === 'free') {
-        currentAspectRatio_crop = NaN;
+        state.state.currentAspectRatio_crop = NaN;
       } else {
-        currentAspectRatio_crop = parseFloat(aspectValue);
+        state.state.currentAspectRatio_crop = parseFloat(aspectValue);
       }
 
-      // Update cropper if it's active
-      if (cropper && isCropping) {
-        cropper.setAspectRatio(currentAspectRatio_crop);
+      // Update state.cropper if it's active
+      if (state.cropper && state.isCropping) {
+        state.cropper.setAspectRatio(state.state.currentAspectRatio_crop);
       }
     });
   });
@@ -2136,11 +2261,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ROTATION AND FLIP
   // --------------------------------------------------------------------------------------------
   async function rotateImage(degrees) {
-    if (!cropper) return;
+    if (!state.cropper) return;
     showLoading(true);
     try {
       pushStateToHistory();
-      const croppedCanvas = cropper.getCroppedCanvas();
+      const croppedCanvas = state.cropper.getCroppedCanvas();
       if (!croppedCanvas) {
         showError('Cannot rotate without a valid image.');
         return;
@@ -2153,10 +2278,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const newWidth = croppedCanvas.width * cos + croppedCanvas.height * sin;
       const newHeight = croppedCanvas.width * sin + croppedCanvas.height * cos;
 
-      masterCanvas = document.createElement('canvas');
-      masterCanvas.width = newWidth;
-      masterCanvas.height = newHeight;
-      const ctx = masterCanvas.getContext('2d');
+      state.masterCanvas = document.createElement('canvas');
+      state.masterCanvas.width = newWidth;
+      state.masterCanvas.height = newHeight;
+      const ctx = state.masterCanvas.getContext('2d');
       ctx.translate(newWidth / 2, newHeight / 2);
       ctx.rotate(radians);
       ctx.drawImage(croppedCanvas, -croppedCanvas.width / 2, -croppedCanvas.height / 2);
@@ -2173,20 +2298,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function flipImage(horizontal) {
-    if (!cropper) return;
+    if (!state.cropper) return;
     showLoading(true);
     try {
       pushStateToHistory();
-      const croppedCanvas = cropper.getCroppedCanvas();
+      const croppedCanvas = state.cropper.getCroppedCanvas();
       if (!croppedCanvas) {
         showError('Cannot flip without a valid image.');
         return;
       }
 
-      masterCanvas = document.createElement('canvas');
-      masterCanvas.width = croppedCanvas.width;
-      masterCanvas.height = croppedCanvas.height;
-      const ctx = masterCanvas.getContext('2d');
+      state.masterCanvas = document.createElement('canvas');
+      state.masterCanvas.width = croppedCanvas.width;
+      state.masterCanvas.height = croppedCanvas.height;
+      const ctx = state.masterCanvas.getContext('2d');
 
       if (horizontal) {
         ctx.translate(croppedCanvas.width, 0);
@@ -2268,20 +2393,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // LOCK ASPECT RATIO FOR RESIZE FIELDS
   // --------------------------------------------------------------------------------------------
   resizeWidthInput.addEventListener('input', () => {
-    if (aspectLockCheckbox.checked && currentAspectRatio > 0) {
+    if (aspectLockCheckbox.checked && state.currentAspectRatio > 0) {
       const newWidth = parseInt(resizeWidthInput.value, 10);
       if (!isNaN(newWidth) && newWidth > 0) {
-        const newHeight = Math.round(newWidth / currentAspectRatio);
+        const newHeight = Math.round(newWidth / state.currentAspectRatio);
         resizeHeightInput.value = newHeight;
       }
     }
   });
 
   resizeHeightInput.addEventListener('input', () => {
-    if (aspectLockCheckbox.checked && currentAspectRatio > 0) {
+    if (aspectLockCheckbox.checked && state.currentAspectRatio > 0) {
       const newHeight = parseInt(resizeHeightInput.value, 10);
       if (!isNaN(newHeight) && newHeight > 0) {
-        const newWidth = Math.round(newHeight * currentAspectRatio);
+        const newWidth = Math.round(newHeight * state.currentAspectRatio);
         resizeWidthInput.value = newWidth;
       }
     }
@@ -2292,37 +2417,37 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------------------------
   function getImageState() {
     return {
-      filename: currentImageFilename,
-      width: currentWidth,
-      height: currentHeight,
-      aspectRatio: currentAspectRatio,
+      filename: state.currentImageFilename,
+      width: state.currentWidth,
+      height: state.currentHeight,
+      aspectRatio: state.currentAspectRatio,
       format: getCurrentFormat(),
       quality: getCurrentQuality(),
-      dataURL: masterCanvas
-        ? masterCanvas.toDataURL(getCurrentFormat(), getCurrentQuality())
-        : originalImageDataURL,
+      dataURL: state.masterCanvas
+        ? state.masterCanvas.toDataURL(getCurrentFormat(), getCurrentQuality())
+        : state.originalImageDataURL,
 
-      cropperData: cropper ? cropper.getData() : null, // Save cropper data
+      cropperData: state.cropper ? state.cropper.getData() : null, // Save cropper data
     };
   }
 
   function pushStateToHistory() {
-    if (!masterCanvas && !originalImageDataURL) return; // Nothing to save.
-    const state = getImageState();
+    if (!state.masterCanvas && !state.originalImageDataURL) return; // Nothing to save.
+    const imageState = getImageState();
 
-    historyManager.push(state);
+    historyManager.push(imageState);
     updateUndoButtonState();
   }
 
   async function restoreState(state) {
     if (!state) return;
 
-    currentImageFilename = state.filename;
-    currentWidth = state.width;
-    currentHeight = state.height;
-    currentAspectRatio = state.aspectRatio;
-    resizeWidthInput.value = currentWidth || '';
-    resizeHeightInput.value = currentHeight || '';
+    state.currentImageFilename = state.filename;
+    state.currentWidth = state.width;
+    state.currentHeight = state.height;
+    state.currentAspectRatio = state.aspectRatio;
+    resizeWidthInput.value = state.currentWidth || '';
+    resizeHeightInput.value = state.currentHeight || '';
 
     if (qualitySlider) qualitySlider.value = state.quality;
     if (qualityValueDisplay) qualityValueDisplay.textContent = state.quality;
@@ -2337,20 +2462,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update UI immediately
     updateDimensionDisplays();
     updateEstimatedSize();
-    fileNameDisplay.textContent = currentImageFilename || '';
+    fileNameDisplay.textContent = state.currentImageFilename || '';
 
     try {
       await loadImageOntoEditableImage(state.dataURL, false); // reload the data URL
 
-      // Recreate masterCanvas from the restored state
-      masterCanvas = await createFullCanvasFromImage(state.dataURL);
+      // Recreate state.masterCanvas from the restored state
+      state.masterCanvas = await createFullCanvasFromImage(state.dataURL);
 
-      if (state.cropperData && cropper) {
-        cropper.setData(state.cropperData); // Restore crop area if needed.
+      if (state.state.cropperData && state.cropper) {
+        state.cropper.setData(state.state.cropperData); // Restore crop area if needed.
       }
 
       // Update comparison view since it's always on
-      if (isComparingImages && originalImagePreview) {
+      if (state.isComparingImages && originalImagePreview) {
         originalImagePreview.src = state.dataURL;
       }
 
@@ -2384,15 +2509,15 @@ document.addEventListener('DOMContentLoaded', () => {
       await restoreState(states[states.length - 1]);
     } else {
       // Attempt to restore the original image
-      if (originalImageDataURL) {
+      if (state.originalImageDataURL) {
         await restoreState({
-          filename: currentImageFilename,
-          width: originalWidth,
-          height: originalHeight,
-          aspectRatio: originalWidth / originalHeight || 1, // Calculate, or default to 1
+          filename: state.currentImageFilename,
+          width: state.originalWidth,
+          height: state.originalHeight,
+          aspectRatio: state.originalWidth / state.originalHeight || 1, // Calculate, or default to 1
           format: 'image/png', // Or use a default
           quality: '1',
-          dataURL: originalImageDataURL,
+          dataURL: state.originalImageDataURL,
         });
       } else {
         console.warn('No original image to restore to.');
@@ -2412,9 +2537,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // DIMENSION & FILE SIZE DISPLAY
   // --------------------------------------------------------------------------------------------
   function updateDimensionDisplays() {
-    originalDimensionsEl.textContent = `${originalWidth} x ${originalHeight} px`;
-    const dw = Math.max(0, Math.round(currentWidth));
-    const dh = Math.max(0, Math.round(currentHeight));
+    originalDimensionsEl.textContent = `${state.originalWidth} x ${state.originalHeight} px`;
+    const dw = Math.max(0, Math.round(state.currentWidth));
+    const dh = Math.max(0, Math.round(state.currentHeight));
     currentDimensionsEl.textContent = `${dw} x ${dh} px`;
     resizeWidthInput.value = dw > 0 ? dw : '';
     resizeHeightInput.value = dh > 0 ? dh : '';
@@ -2424,8 +2549,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (
       !editableImage.src ||
       editableImage.src === '#' ||
-      currentWidth <= 0 ||
-      currentHeight <= 0
+      state.currentWidth <= 0 ||
+      state.currentHeight <= 0
     ) {
       optimizedFileSizeEl.textContent = '--';
       return;
@@ -2443,15 +2568,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // COMPARISON MODE
   // --------------------------------------------------------------------------------------------
   function toggleComparison(show) {
-    if (!originalImageDataURL || !masterCanvas) return;
-    isComparingImages = show;
+    if (!state.originalImageDataURL || !state.masterCanvas) return;
+    state.isComparingImages = show;
 
     if (show) {
       // Swap: edited on left (comparison-original), original on right (comparison-edited with clip)
       const format = getCurrentFormat();
       const quality = getCurrentQuality();
-      originalImagePreview.src = masterCanvas.toDataURL(format, quality); // Edited on left
-      editedImagePreview.src = originalImageDataURL; // Original on right
+      originalImagePreview.src = state.masterCanvas.toDataURL(format, quality); // Edited on left
+      editedImagePreview.src = state.originalImageDataURL; // Original on right
 
       comparisonContainer.style.display = 'block';
       imageWrapper.style.display = 'none';
@@ -2477,13 +2602,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Compare button toggle
   compareBtn?.addEventListener('click', () => {
-    toggleComparison(!isComparingImages);
+    toggleComparison(!state.isComparingImages);
     updateCompareButton();
   });
 
   function updateCompareButton() {
     if (compareBtn) {
-      if (isComparingImages) {
+      if (state.isComparingImages) {
         compareBtn.textContent = 'Exit Compare';
         compareBtn.classList.add('active');
       } else {
@@ -2527,16 +2652,16 @@ document.addEventListener('DOMContentLoaded', () => {
     editableImage.src = '#';
     imageWrapper.style.width = '';
     imageWrapper.style.height = '';
-    masterCanvas = null;
-    originalImageDataURL = null;
-    originalWidth = 0;
-    originalHeight = 0;
-    originalFileSize = 0;
-    currentWidth = 0;
-    currentHeight = 0;
+    state.masterCanvas = null;
+    state.originalImageDataURL = null;
+    state.originalWidth = 0;
+    state.originalHeight = 0;
+    state.originalFileSize = 0;
+    state.currentWidth = 0;
+    state.currentHeight = 0;
     fileNameDisplay.textContent = '';
     originalDimensionsEl.textContent = '--';
-    originalFileSizeEl.textContent = '--';
+    state.originalFileSizeEl.textContent = '--';
     currentDimensionsEl.textContent = '--';
     optimizedFileSizeEl.textContent = '--';
     startCropBtn.disabled = false;
@@ -2546,7 +2671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeHeightInput.value = '';
     aspectLockCheckbox.checked = true;
     resetQualitySliderToMax();
-    isComparingImages = false;
+    state.isComparingImages = false;
     comparisonContainer.style.display = 'none';
     imageWrapper.style.display = 'none';
 
@@ -2557,31 +2682,31 @@ document.addEventListener('DOMContentLoaded', () => {
     savePdfBtn.style.display = 'none';
     backToGalleryBtn.style.display = 'none';
     // Clean up PDF images with memory utility
-    cleanupPdfImages(pdfImages);
-    currentPdfFile = null;
-    pdfDocument = null;
-    currentEditingImageIndex = -1;
+    cleanupPdfImages(state.pdfImages);
+    state.currentPdfFile = null;
+    state.pdfDocument = null;
+    state.currentEditingImageIndex = -1;
 
     // Clean up history with memory manager
     historyManager.clear();
 
     // Dispose of canvas
-    if (masterCanvas) {
-      disposeCanvas(masterCanvas);
-      masterCanvas = null;
+    if (state.masterCanvas) {
+      disposeCanvas(state.masterCanvas);
+      state.masterCanvas = null;
     }
 
-    // Dispose of cropper
-    if (cropper) {
-      disposeCropper(cropper);
-      cropper = null;
+    // Dispose of state.cropper
+    if (state.cropper) {
+      disposeCropper(state.cropper);
+      state.cropper = null;
     }
 
     resetUIState();
   }
 
   function resetUIState() {
-    const hasImage = !!masterCanvas;
+    const hasImage = !!state.masterCanvas;
     clearSection.style.display = hasImage ? 'block' : 'none';
     // Show sections but keep them collapsed (content hidden via CSS)
     cropSection.style.display = hasImage ? 'block' : 'none';
@@ -2610,17 +2735,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // SAVE BUTTON
   // --------------------------------------------------------------------------------------------
   saveBtn.addEventListener('click', () => {
-    if (!masterCanvas) {
+    if (!state.masterCanvas) {
       notificationService.warning('No image to save.');
       return;
     }
     const format = getCurrentFormat();
     const quality = getCurrentQuality();
 
-    const finalDataUrl = masterCanvas.toDataURL(format, quality);
+    const finalDataUrl = state.masterCanvas.toDataURL(format, quality);
     const a = document.createElement('a');
     a.href = finalDataUrl;
-    a.download = currentImageFilename || 'image.png';
+    a.download = state.currentImageFilename || 'image.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2636,10 +2761,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set up memory cleanup on page unload
   setupUnloadCleanup({
-    masterCanvas,
-    cropper,
+    masterCanvas: state.masterCanvas,
+    cropper: state.cropper,
     historyManager,
-    pdfImages,
-    originalImageDataURL,
+    pdfImages: state.pdfImages,
+    originalImageDataURL: state.originalImageDataURL,
   });
 });
