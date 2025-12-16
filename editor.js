@@ -524,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function handleImageLoad(dataURL, fileSize) {
     state.originalImageDataURL = dataURL;
     state.originalFileSize = fileSize;
-    state.originalFileSizeEl.textContent = formatBytes(state.originalFileSize);
+    originalFileSizeEl.textContent = formatBytes(state.originalFileSize);
 
     try {
       await loadImageOntoEditableImage(state.originalImageDataURL, true);
@@ -2661,7 +2661,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.currentHeight = 0;
     fileNameDisplay.textContent = '';
     originalDimensionsEl.textContent = '--';
-    state.originalFileSizeEl.textContent = '--';
+    originalFileSizeEl.textContent = '--';
     currentDimensionsEl.textContent = '--';
     optimizedFileSizeEl.textContent = '--';
     startCropBtn.disabled = false;
