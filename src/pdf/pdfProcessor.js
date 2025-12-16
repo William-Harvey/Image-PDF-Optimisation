@@ -144,11 +144,13 @@ async function extractEmbeddedImages(buffer) {
           const pathData = args[1];
 
           console.log(
-            `constructPath on page ${pageNum}: args.length=${args.length}, pathOps=`,
-            pathOps,
-            `pathData=`,
-            pathData,
-            `pathData.length=${pathData ? pathData.length : 'null'}`
+            `constructPath on page ${pageNum}: args.length=${args.length}`,
+            `pathOps=${pathOps}`,
+            `pathData.length=${pathData ? pathData.length : 'null'}`,
+            `pathData[0]=`,
+            pathData ? pathData[0] : 'null',
+            `args[2]=`,
+            args[2]
           );
 
           if (pathData && pathData.length >= 4) {
