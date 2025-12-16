@@ -1683,7 +1683,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // If it's a reference or doesn't have entries(), try to look it up
         if (xObjects && typeof xObjects.entries !== 'function') {
-          console.log(`XObject is not a dict (type: ${xObjects.constructor.name}), attempting lookup...`);
+          console.log(
+            `XObject is not a dict (type: ${xObjects.constructor.name}), attempting lookup...`
+          );
           const lookedUp = pdfDoc.context.lookup(xObjects);
           if (lookedUp && lookedUp !== xObjects) {
             console.log(`  Looked up to type: ${lookedUp.constructor.name}`);
@@ -1694,7 +1696,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!xObjects) continue;
 
         const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(xObjects));
-        console.log(`XObjects final type: ${xObjects.constructor.name}, methods: ${methods.join(', ')}`);
+        console.log(
+          `XObjects final type: ${xObjects.constructor.name}, methods: ${methods.join(', ')}`
+        );
 
         // PDFDict.entries() returns array of [PDFName, PDFObject][]
         if (typeof xObjects.entries !== 'function') {

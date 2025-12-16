@@ -73,9 +73,13 @@ async function extractEmbeddedImages(buffer) {
       const ops = await page.getOperatorList();
       const { OPS } = await getResolvedPDFJS();
 
-      // Find image operations (paintImageXObject = "Do" operator for images)
+      // Find image operations (both XObject images and inline images)
       for (let i = 0; i < ops.fnArray.length; i++) {
-        if (ops.fnArray[i] === OPS.paintImageXObject) {
+        const opCode = ops.fnArray[i];
+
+        // paintImageXObject = "Do" operator for XObject images
+        // paintInlineImageXObject = inline images (BI/ID/EI operators)
+        if (opCode === OPS.paintImageXObject || opCode === OPS.paintInlineImageXObject) {
           const imageName = ops.argsArray[i][0];
 
           try {
