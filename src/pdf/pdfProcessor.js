@@ -41,28 +41,38 @@ export async function extractPdfImages(pdfData, mode = 'images') {
  * @private
  */
 async function extractEmbeddedImages(buffer) {
-  const result = await extractImages(buffer);
+  try {
+    // Get document proxy first
+    const pdf = await getDocumentProxy(buffer);
+    const allImages = [];
 
-  // Transform unpdf format to match expected format
-  const images = result.images.map((img, index) => {
-    // Create data URL from image data
-    const dataURL = createDataURLFromImage(img);
+    // Extract images from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const pageImages = await extractImages(pdf, pageNum);
 
-    return {
-      index,
-      dataURL,
-      originalSize: estimateImageSize(img),
-      width: img.width,
-      height: img.height,
-      pageNum: img.pageNumber || index + 1,
-      imageName: `image-${index + 1}`,
-      isOptimized: false,
-      optimizedDataURL: null,
-      optimizedSize: 0,
-    };
-  });
+      // Convert each image to our format
+      pageImages.forEach((imgData, imgIndex) => {
+        const dataURL = createDataURLFromImageData(imgData);
+        allImages.push({
+          index: allImages.length,
+          dataURL,
+          originalSize: imgData.length || estimateDataURLSize(dataURL),
+          width: 0, // Width/height not available from raw data
+          height: 0,
+          pageNum,
+          imageName: `page-${pageNum}-image-${imgIndex + 1}`,
+          isOptimized: false,
+          optimizedDataURL: null,
+          optimizedSize: 0,
+        });
+      });
+    }
 
-  return images;
+    return allImages;
+  } catch (error) {
+    console.error('Error in extractEmbeddedImages:', error);
+    throw error;
+  }
 }
 
 /**
@@ -119,6 +129,25 @@ async function renderPdfPages(buffer) {
     return images;
   } catch (error) {
     console.error('Error rendering PDF pages:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create data URL from raw image data (Uint8Array)
+ * @private
+ */
+function createDataURLFromImageData(data) {
+  try {
+    // Convert Uint8Array to base64
+    const base64 = btoa(
+      Array.from(new Uint8Array(data))
+        .map((byte) => String.fromCharCode(byte))
+        .join('')
+    );
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error('Error creating data URL from image data:', error);
     throw error;
   }
 }
