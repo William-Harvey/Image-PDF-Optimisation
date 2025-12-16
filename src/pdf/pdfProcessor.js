@@ -88,10 +88,19 @@ async function extractEmbeddedImages(buffer) {
       }
       console.log(`Page ${pageNum} operations:`, JSON.stringify(opCounts, null, 2));
 
+      // Track the last dependency name (might be used for Form XObjects)
+      let lastDependencyName = null;
+
       // Find image operations (XObject images, inline images, and Form XObjects)
       for (let i = 0; i < ops.fnArray.length; i++) {
         const opCode = ops.fnArray[i];
         const args = ops.argsArray[i];
+
+        // Track dependency operations (these reference objects to be loaded)
+        if (opCode === OPS.dependency) {
+          lastDependencyName = args[0]; // Dependencies have the object name as first arg
+          console.log(`Dependency operation: "${lastDependencyName}"`);
+        }
 
         // Track graphics state changes
         if (opCode === OPS.save) {
@@ -144,13 +153,16 @@ async function extractEmbeddedImages(buffer) {
 
           // For Form XObjects, the structure is different:
           // args[0] = transformation matrix (Float32Array)
-          // args[1] = Form XObject name (string)
+          // args[1] = Form XObject name (string) OR null
           // For regular images:
           // args[0] = image name (string)
           let actualImageName;
-          if (opCode === OPS.paintFormXObjectBegin && args.length >= 2) {
-            actualImageName = args[1]; // Form XObject name is second argument
-            console.log(`  Form XObject name from args[1]: "${actualImageName}"`);
+          if (opCode === OPS.paintFormXObjectBegin) {
+            // Try args[1] first, fall back to last dependency if null
+            actualImageName = args[1] || lastDependencyName;
+            console.log(
+              `  Form XObject name: args[1]="${args[1]}", lastDependency="${lastDependencyName}", using="${actualImageName}"`
+            );
           } else {
             actualImageName = imageName; // Regular image name from args[0]
           }
