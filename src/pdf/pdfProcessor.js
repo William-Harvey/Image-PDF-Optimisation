@@ -80,6 +80,14 @@ async function extractEmbeddedImages(buffer) {
       const transformStack = [[1, 0, 0, 1, 0, 0]]; // Identity matrix
       let currentTransform = transformStack[0];
 
+      // Count operations for debugging
+      const opCounts = {};
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        const opName = Object.keys(OPS).find((key) => OPS[key] === ops.fnArray[i]);
+        opCounts[opName] = (opCounts[opName] || 0) + 1;
+      }
+      console.log(`Page ${pageNum} operations:`, opCounts);
+
       // Find image operations (XObject images, inline images, and Form XObjects)
       for (let i = 0; i < ops.fnArray.length; i++) {
         const opCode = ops.fnArray[i];
