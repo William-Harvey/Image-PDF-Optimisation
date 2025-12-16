@@ -107,7 +107,6 @@ async function extractEmbeddedImages(buffer) {
         // Track dependency operations (these reference objects to be loaded)
         if (opCode === OPS.dependency) {
           lastDependencyName = args[0]; // Dependencies have the object name as first arg
-          console.log(`Dependency operation: "${lastDependencyName}"`);
         }
 
         // Track graphics state changes
@@ -152,21 +151,12 @@ async function extractEmbeddedImages(buffer) {
               maxX: bbox[2],
               maxY: bbox[3],
             };
-            console.log(
-              `constructPath on page ${pageNum}: bbox=[${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}]`
-            );
             currentClipBounds = pathBounds;
           }
         } else if (opCode === OPS.clip) {
           // Clip operation uses the previously constructed path
           // currentClipBounds should already be set by constructPath
-          console.log(
-            `CLIP operation on page ${pageNum}, currentClipBounds=${JSON.stringify(currentClipBounds)}`
-          );
         } else if (opCode === OPS.shadingFill) {
-          console.log(
-            `SHADINGFILL on page ${pageNum}, currentClipBounds=${JSON.stringify(currentClipBounds)}`
-          );
           // Extract the shading region from the rendered page
           if (currentClipBounds) {
             try {
@@ -248,20 +238,13 @@ async function extractEmbeddedImages(buffer) {
           const imageName = ops.argsArray[i][0];
           const args = ops.argsArray[i];
 
-          // Log what type of operation this is BEFORE validation
+          // Determine operation type
           const opType =
             opCode === OPS.paintImageXObject
               ? 'XObject'
               : opCode === OPS.paintInlineImageXObject
                 ? 'Inline'
                 : 'FormXObject';
-          console.log(
-            `Processing ${opType} operation, args length: ${args.length}`,
-            `args[0]:`,
-            args[0],
-            `args[1]:`,
-            args[1]
-          );
 
           // For Form XObjects, the structure is different:
           // args[0] = transformation matrix (Float32Array)
@@ -272,9 +255,6 @@ async function extractEmbeddedImages(buffer) {
           if (opCode === OPS.paintFormXObjectBegin) {
             // Try args[1] first, fall back to last dependency if null
             actualImageName = args[1] || lastDependencyName;
-            console.log(
-              `  Form XObject name: args[1]="${args[1]}", lastDependency="${lastDependencyName}", using="${actualImageName}"`
-            );
           } else {
             actualImageName = imageName; // Regular image name from args[0]
           }
@@ -291,30 +271,19 @@ async function extractEmbeddedImages(buffer) {
           // Use actualImageName from here on
           const finalImageName = actualImageName;
 
-          console.log(
-            `✓ Found ${opType} "${finalImageName}" on page ${pageNum}, opCode=${opCode}`
-          );
-
           // Skip if we've already extracted this object
           if (extractedObjects.has(finalImageName)) {
-            console.log(
-              `  Skipping "${finalImageName}" - already extracted (likely FormXObject wrapping an image)`
-            );
             continue;
           }
 
           try {
             // Check if object exists (defensive check)
             if (page.objs.has && !page.objs.has(finalImageName)) {
-              console.warn(`Image/Form "${finalImageName}" not found, skipping`);
               continue;
             }
 
             // Get the image or form object (now loaded after rendering)
             const obj = page.objs.get(finalImageName);
-            console.log(
-              `  Object "${finalImageName}": exists=${!!obj}, hasBitmap=${!!(obj && obj.bitmap)}, hasDict=${!!(obj && obj.dict)}`
-            );
 
             if (obj && obj.bitmap) {
               // Raster image with bitmap
