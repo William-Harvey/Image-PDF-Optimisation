@@ -78,39 +78,47 @@ async function extractEmbeddedImages(buffer) {
         if (ops.fnArray[i] === OPS.paintImageXObject) {
           const imageName = ops.argsArray[i][0];
 
-          // Check if object exists
-          if (!page.objs.has(imageName)) {
-            console.warn(`Image "${imageName}" not found, skipping`);
-            continue;
-          }
+          try {
+            // Check if object exists (defensive check)
+            if (page.objs.has && !page.objs.has(imageName)) {
+              console.warn(`Image "${imageName}" not found, skipping`);
+              continue;
+            }
 
-          // Get the image object (now loaded after rendering)
-          const image = page.objs.get(imageName);
+            // Get the image object (now loaded after rendering)
+            const image = page.objs.get(imageName);
 
-          if (image && image.bitmap) {
-            // Convert ImageBitmap to canvas
-            const extractCanvas = document.createElement('canvas');
-            extractCanvas.width = image.width;
-            extractCanvas.height = image.height;
-            const ctx = extractCanvas.getContext('2d', { alpha: true });
-            ctx.clearRect(0, 0, extractCanvas.width, extractCanvas.height);
-            ctx.drawImage(image.bitmap, 0, 0);
+            if (image && image.bitmap) {
+              // Convert ImageBitmap to canvas
+              const extractCanvas = document.createElement('canvas');
+              extractCanvas.width = image.width;
+              extractCanvas.height = image.height;
+              const ctx = extractCanvas.getContext('2d', { alpha: true });
+              ctx.clearRect(0, 0, extractCanvas.width, extractCanvas.height);
+              ctx.drawImage(image.bitmap, 0, 0);
 
-            // Export as PNG to preserve transparency
-            const dataURL = extractCanvas.toDataURL('image/png', 1.0);
+              // Export as PNG to preserve transparency
+              const dataURL = extractCanvas.toDataURL('image/png', 1.0);
 
-            allImages.push({
-              index: imageIndex++,
-              dataURL,
-              originalSize: estimateDataURLSize(dataURL),
-              width: image.width,
-              height: image.height,
-              pageNum,
-              imageName: `page-${pageNum}-${imageName}`,
-              isOptimized: false,
-              optimizedDataURL: null,
-              optimizedSize: 0,
-            });
+              allImages.push({
+                index: imageIndex++,
+                dataURL,
+                originalSize: estimateDataURLSize(dataURL),
+                width: image.width,
+                height: image.height,
+                pageNum,
+                imageName: `page-${pageNum}-${imageName}`,
+                isOptimized: false,
+                optimizedDataURL: null,
+                optimizedSize: 0,
+              });
+            }
+          } catch (err) {
+            console.warn(
+              `Failed to extract image "${imageName}" from page ${pageNum}:`,
+              err.message
+            );
+            // Continue to next image
           }
         }
       }
