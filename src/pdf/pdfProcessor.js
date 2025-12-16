@@ -83,6 +83,11 @@ async function extractEmbeddedImages(buffer) {
       const transformStack = [[1, 0, 0, 1, 0, 0]]; // Identity matrix
       let currentTransform = transformStack[0];
 
+      // Track clipping regions for shading extraction
+      const clippingStack = [];
+      let currentClipBounds = null;
+      let shadingIndex = 0;
+
       // Count operations for debugging
       const opCounts = {};
       for (let i = 0; i < ops.fnArray.length; i++) {
@@ -108,10 +113,14 @@ async function extractEmbeddedImages(buffer) {
         // Track graphics state changes
         if (opCode === OPS.save) {
           transformStack.push([...currentTransform]);
+          clippingStack.push(currentClipBounds);
         } else if (opCode === OPS.restore) {
           if (transformStack.length > 1) {
             transformStack.pop();
             currentTransform = transformStack[transformStack.length - 1];
+          }
+          if (clippingStack.length > 0) {
+            currentClipBounds = clippingStack.pop();
           }
         } else if (opCode === OPS.transform) {
           // Multiply current transform with new transform
@@ -126,6 +135,109 @@ async function extractEmbeddedImages(buffer) {
             e * b0 + f * d0 + f0,
           ];
           transformStack[transformStack.length - 1] = currentTransform;
+        } else if (opCode === OPS.constructPath) {
+          // constructPath defines a path that might be used for clipping
+          // args[0] contains path operations (array of operation codes)
+          // args[1] contains path data (coordinates)
+          // We'll compute a bounding box from the path data
+          const pathOps = args[0];
+          const pathData = args[1];
+
+          if (pathData && pathData.length >= 4) {
+            // Simple bounding box calculation from path coordinates
+            let minX = Infinity,
+              minY = Infinity,
+              maxX = -Infinity,
+              maxY = -Infinity;
+            for (let j = 0; j < pathData.length; j += 2) {
+              const x = pathData[j];
+              const y = pathData[j + 1];
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+
+            // Store as potential clip bounds (will be used if followed by clip operation)
+            currentClipBounds = { minX, minY, maxX, maxY };
+          }
+        } else if (opCode === OPS.clip) {
+          // Clip operation uses the previously constructed path
+          // currentClipBounds should already be set by constructPath
+          if (currentClipBounds) {
+            console.log(
+              `Clip region on page ${pageNum}:`,
+              currentClipBounds
+            );
+          }
+        } else if (opCode === OPS.shadingFill) {
+          // Extract the shading region from the rendered page
+          if (currentClipBounds) {
+            try {
+              // Transform clip bounds to page coordinates
+              const [a, b, c, d, e, f] = currentTransform;
+              const x1 = currentClipBounds.minX * a + currentClipBounds.minY * c + e;
+              const y1 = currentClipBounds.minX * b + currentClipBounds.minY * d + f;
+              const x2 = currentClipBounds.maxX * a + currentClipBounds.maxY * c + e;
+              const y2 = currentClipBounds.maxX * b + currentClipBounds.maxY * d + f;
+
+              // Convert to canvas coordinates (PDF uses bottom-left origin, canvas uses top-left)
+              const canvasX = Math.min(x1, x2) * viewport.scale;
+              const canvasY = viewport.height - Math.max(y1, y2) * viewport.scale;
+              const width = Math.abs(x2 - x1) * viewport.scale;
+              const height = Math.abs(y2 - y1) * viewport.scale;
+
+              console.log(
+                `Extracting shading ${shadingIndex} on page ${pageNum}: (${Math.round(canvasX)}, ${Math.round(canvasY)}, ${Math.round(width)}x${Math.round(height)})`
+              );
+
+              if (width > 1 && height > 1) {
+                // Extract the shading region from the rendered page canvas
+                const shadingCanvas = document.createElement('canvas');
+                shadingCanvas.width = width;
+                shadingCanvas.height = height;
+                const shadingCtx = shadingCanvas.getContext('2d', { alpha: true });
+
+                shadingCtx.drawImage(
+                  pageCanvas,
+                  canvasX,
+                  canvasY,
+                  width,
+                  height,
+                  0,
+                  0,
+                  width,
+                  height
+                );
+
+                const dataURL = shadingCanvas.toDataURL('image/png', 1.0);
+
+                allImages.push({
+                  index: imageIndex++,
+                  dataURL,
+                  originalSize: estimateDataURLSize(dataURL),
+                  width,
+                  height,
+                  pageNum,
+                  imageName: `page-${pageNum}-shading-${shadingIndex}`,
+                  isOptimized: false,
+                  optimizedDataURL: null,
+                  optimizedSize: 0,
+                });
+
+                console.log(
+                  `✓ Extracted shading ${shadingIndex} on page ${pageNum} (${Math.round(width)}x${Math.round(height)})`
+                );
+                shadingIndex++;
+              }
+            } catch (err) {
+              console.warn(`Failed to extract shading on page ${pageNum}:`, err.message);
+            }
+          } else {
+            console.log(
+              `Shading on page ${pageNum} has no clip bounds, skipping`
+            );
+          }
         }
 
         // paintImageXObject = "Do" operator for XObject images
