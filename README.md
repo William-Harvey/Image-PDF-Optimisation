@@ -9,6 +9,7 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 ## Features
 
 ### Image Editing
+
 - **Crop**: Free or fixed aspect ratios (1:1, 4:3, 16:9)
 - **Rotate & Flip**: 90° rotations and horizontal/vertical flipping
 - **Resize**: Proportional or custom dimensions
@@ -18,6 +19,7 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 - **Undo**: Revert changes with bounded history stack
 
 ### PDF Optimization
+
 - **Extract Images**: Pull images from PDFs or render full pages
 - **Bulk Optimization**: Apply compression to all images at once
 - **Individual Editing**: Edit each image separately in gallery view
@@ -26,6 +28,7 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 - **Preview Modal**: Interactive before/after comparison
 
 ### User Experience
+
 - **Multiple Input Methods**: Upload, drag & drop, paste (Ctrl+V), or right-click on web images
 - **Dark/Light Themes**: System preference detection with manual override
 - **Keyboard Shortcuts**:
@@ -38,16 +41,20 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 ## Installation
 
 ### From Chrome Web Store
-*(Link to be added once published)*
+
+_(Link to be added once published)_
 
 ### Development Install
+
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/William-Harvey/Image-PDF-Optimisation.git
    cd "Image-PDF-Optimisation"
    ```
 
 2. Install dependencies (optional, for linting/formatting):
+
    ```bash
    npm install
    ```
@@ -61,6 +68,7 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 ## Development
 
 ### Project Structure
+
 ```
 /
 ├── manifest.json           # Extension configuration (Manifest V3)
@@ -82,6 +90,7 @@ A professional Chrome extension for editing images and optimizing PDFs directly 
 ```
 
 ### Scripts
+
 ```bash
 # Lint code
 npm run lint
@@ -102,6 +111,7 @@ npm run validate
 ### Code Quality
 
 #### ESLint Rules
+
 - No `var` declarations (use `const`/`let`)
 - Strict equality (`===`)
 - No `alert()` (use custom notifications)
@@ -109,6 +119,7 @@ npm run validate
 - Require `await` in async functions
 
 #### Prettier Configuration
+
 - Single quotes
 - 2-space indentation
 - Semicolons required
@@ -140,14 +151,14 @@ All constants centralized in `config.js`:
 import { CONFIG, FILE, UI, COMPRESSION } from './config.js';
 
 // Example: File size limit
-FILE.MAX_SIZE_BYTES // 50 MB
+FILE.MAX_SIZE_BYTES; // 50 MB
 
 // Example: UI timing
-UI.DEBOUNCE_DELAY_MS // 250ms
-UI.NOTIFICATION_DURATION_MS // 3000ms
+UI.DEBOUNCE_DELAY_MS; // 250ms
+UI.NOTIFICATION_DURATION_MS; // 3000ms
 
 // Example: Compression defaults
-COMPRESSION.DEFAULT_QUALITY // 0.92
+COMPRESSION.DEFAULT_QUALITY; // 0.92
 ```
 
 ## Browser Compatibility
@@ -163,17 +174,20 @@ COMPRESSION.DEFAULT_QUALITY // 0.92
 ## Security
 
 ### Content Security Policy
+
 ```json
 "script-src 'self'; object-src 'self'"
 ```
 
 ### Input Validation
+
 - File size limits (50 MB)
 - MIME type checking
 - Filename sanitization (prevents path traversal, XSS)
 - URL validation (HTTP/HTTPS/data only)
 
 ### Memory Safety
+
 - Bounded history stack (10 items max)
 - Automatic canvas disposal
 - Object URL revocation
@@ -250,6 +264,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 ## Support
 
 For issues or feature requests:
+
 - Open an issue on [GitHub](https://github.com/William-Harvey/Image-PDF-Optimisation/issues)
 - Connect on [LinkedIn](https://www.linkedin.com/in/williamharveyuk/)
 

@@ -1,0 +1,148 @@
+/* Notification System Styles */
+
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  min-width: 300px;
+  max-width: 400px;
+  word-wrap: break-word;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.notification-message {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.notification-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+/* Success notification */
+.notification-success {
+  background-color: var(--accent-success);
+  color: var(--text-on-success);
+}
+
+.notification-success .notification-icon {
+  color: var(--text-on-success);
+}
+
+.notification-success .notification-close {
+  color: var(--text-on-success);
+}
+
+/* Error notification */
+.notification-error {
+  background-color: var(--accent-danger);
+  color: var(--text-on-danger);
+}
+
+.notification-error .notification-icon {
+  color: var(--text-on-danger);
+}
+
+.notification-error .notification-close {
+  color: var(--text-on-danger);
+}
+
+/* Warning notification */
+.notification-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.notification-warning .notification-icon {
+  color: white;
+}
+
+.notification-warning .notification-close {
+  color: white;
+}
+
+/* Info notification */
+.notification-info {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.notification-info .notification-icon {
+  color: white;
+}
+
+.notification-info .notification-close {
+  color: white;
+}
+
+/* Dark mode adjustments */
+html.dark .notification {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notification-container {
+    left: 10px;
+    right: 10px;
+    top: 10px;
+    max-width: none;
+  }
+
+  .notification {
+    min-width: auto;
+    max-width: none;
+  }
+}

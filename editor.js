@@ -28,6 +28,19 @@ import {
   HistoryManager,
   setupUnloadCleanup,
 } from './memory.js';
+import { notificationService } from './src/ui/notifications.js';
+import { themeManager } from './src/ui/themeManager.js';
+import { editorState } from './src/core/state.js';
+import {
+  rotateCanvas,
+  flipCanvas,
+  resizeCanvas,
+  cropCanvas,
+  hasTransparency as checkTransparency,
+  createCanvasFromDataURL,
+  loadImageElement,
+  getBlobSizeFromDataURL as getBlobSize,
+} from './src/image/imageProcessor.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // --- DOM Elements ---
@@ -250,126 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let prefersDarkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 
   // --------------------------------------------------------------------------------------------
-  // THEME HANDLING
+  // THEME HANDLING (Using ThemeManager)
   // --------------------------------------------------------------------------------------------
-  function applyTheme(storedTheme, useSystem) {
-    // If toggles aren't found, do nothing
-    if (!darkModeToggle || !systemPrefCheckbox) return;
+  // Initialize theme manager with DOM elements
+  themeManager.init(darkModeToggle, systemPrefCheckbox);
 
-    // Decide final theme
-    let effectiveTheme = 'dark'; // Default to dark mode
-    if (useSystem) {
-      effectiveTheme = prefersDarkMQ.matches ? 'dark' : 'light';
-      darkModeToggle.disabled = true;
-      systemPrefCheckbox.checked = true;
-    } else {
-      effectiveTheme = storedTheme || 'dark'; // Default to dark mode
-      darkModeToggle.disabled = false;
-      systemPrefCheckbox.checked = false;
-    }
-
-    // Toggle the class
-    if (effectiveTheme === 'dark') {
-      htmlElement.classList.add('dark');
-    } else {
-      htmlElement.classList.remove('dark');
-    }
-    // Reflect in the darkModeToggle checkbox
-    darkModeToggle.checked = effectiveTheme === 'dark';
-  }
-
+  // Load theme settings function (called in INIT section)
   async function loadThemeSettings() {
-    try {
-      if (chrome && chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([THEME_PREFERENCE_KEY, USE_SYSTEM_THEME_KEY]);
-        applyTheme(result[THEME_PREFERENCE_KEY] || 'dark', result[USE_SYSTEM_THEME_KEY] === true);
-      } else {
-        applyTheme(
-          localStorage.getItem(THEME_PREFERENCE_KEY) || 'dark',
-          localStorage.getItem(USE_SYSTEM_THEME_KEY) === 'true'
-        );
-      }
-      addThemeControlListeners();
-    } catch (error) {
-      console.error('Error loading theme settings:', error);
-      applyTheme('dark', false);
-      addThemeControlListeners();
-    }
-  }
-
-  function handleSystemThemeChange() {
-    if (chrome && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get([USE_SYSTEM_THEME_KEY, THEME_PREFERENCE_KEY], (result) => {
-        if (!chrome.runtime.lastError && result[USE_SYSTEM_THEME_KEY] === true) {
-          applyTheme(result[THEME_PREFERENCE_KEY] || 'dark', true);
-        }
-      });
-    } else {
-      if (localStorage.getItem(USE_SYSTEM_THEME_KEY) === 'true') {
-        applyTheme(localStorage.getItem(THEME_PREFERENCE_KEY) || 'dark', true);
-      }
-    }
-  }
-
-  function addThemeControlListeners() {
-    // Listen for direct dark mode toggle
-    if (darkModeToggle && !darkModeToggle._listenerAdded) {
-      darkModeToggle.addEventListener('change', () => {
-        const newTheme = darkModeToggle.checked ? 'dark' : 'light';
-        const useSystem = systemPrefCheckbox ? systemPrefCheckbox.checked : false;
-
-        if (chrome && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.set({ [THEME_PREFERENCE_KEY]: newTheme }, () => {
-            if (!chrome.runtime.lastError) {
-              applyTheme(newTheme, useSystem);
-            }
-          });
-        } else {
-          localStorage.setItem(THEME_PREFERENCE_KEY, newTheme);
-          applyTheme(newTheme, useSystem);
-        }
-      });
-      darkModeToggle._listenerAdded = true;
-    }
-
-    // Listen for "Use System Theme"
-    if (systemPrefCheckbox && !systemPrefCheckbox._listenerAdded) {
-      systemPrefCheckbox.addEventListener('change', () => {
-        const useSystem = systemPrefCheckbox.checked;
-        if (chrome && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.set({ [USE_SYSTEM_THEME_KEY]: useSystem }, () => {
-            if (!chrome.runtime.lastError) {
-              chrome.storage.local.get([THEME_PREFERENCE_KEY], (r) => {
-                const stored = r[THEME_PREFERENCE_KEY] || 'dark';
-                applyTheme(stored, useSystem);
-              });
-            }
-          });
-        } else {
-          localStorage.setItem(USE_SYSTEM_THEME_KEY, useSystem.toString());
-          const stored = localStorage.getItem(THEME_PREFERENCE_KEY) || 'dark';
-          applyTheme(stored, useSystem);
-        }
-      });
-      systemPrefCheckbox._listenerAdded = true;
-    }
-
-    // Listen to system dark-mode changes
-    const addMqListener = (mq, handler) => {
-      if (!mq) return;
-      try {
-        if (mq.addEventListener && !mq._listenerAdded) {
-          mq.addEventListener('change', handler);
-          mq._listenerAdded = true;
-        }
-      } catch (e) {
-        if (mq.addListener && !mq._listenerAdded) {
-          mq.addListener(handler);
-          mq._listenerAdded = true;
-        }
-      }
-    };
-    addMqListener(prefersDarkMQ, handleSystemThemeChange);
+    await themeManager.loadSettings();
   }
 
   // --------------------------------------------------------------------------------------------
@@ -452,8 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showError(message) {
-    alert(message);
-    console.error(message);
+    notificationService.error(message);
   }
 
   function validateImageFileAndShow(file) {
@@ -2168,7 +2068,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } catch (err) {
       console.error('Failed to initialise Cropper:', err);
-      alert('Error initialising cropping tool.');
+      notificationService.error('Error initialising cropping tool.');
       startCropBtn.disabled = true;
       applyCropBtn.disabled = true;
       cancelCropBtn.disabled = true;
@@ -2270,7 +2170,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pushStateToHistory(); // Store state before crop
       const croppedCanvas = cropper.getCroppedCanvas();
       if (!croppedCanvas) {
-        alert('No valid crop area.');
+        notificationService.warning('No valid crop area.');
         return;
       }
       const newWidth = croppedCanvas.width; // Use actual cropped size
@@ -2291,7 +2191,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showSuccess(`Cropped to ${newWidth} × ${newHeight}px`);
     } catch (err) {
       console.error('Error applying crop:', err);
-      alert('Could not apply crop.');
+      notificationService.error('Could not apply crop.');
     } finally {
       cropper.disable();
       cropper.setDragMode('move');
@@ -2322,7 +2222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const croppedCanvas = cropper.getCroppedCanvas();
       if (!croppedCanvas) {
-        alert('Cannot resize because no valid image is loaded.');
+        notificationService.warning('Cannot resize because no valid image is loaded.');
         return;
       }
       const newWidth = parseInt(resizeWidthInput.value, 10) || croppedCanvas.width;
@@ -2337,7 +2237,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showSuccess(`Resized to ${newWidth} × ${newHeight}px`);
     } catch (error) {
       console.error('Error applying resize:', error);
-      alert('Could not resize.');
+      notificationService.error('Could not resize.');
     } finally {
       showLoading(false);
       resetUIState();
@@ -2870,7 +2770,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------------------------
   saveBtn.addEventListener('click', () => {
     if (!masterCanvas) {
-      alert('No image to save.');
+      notificationService.warning('No image to save.');
       return;
     }
     const format = getCurrentFormat();
