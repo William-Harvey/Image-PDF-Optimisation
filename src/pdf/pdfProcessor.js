@@ -125,13 +125,9 @@ async function extractEmbeddedImages(buffer) {
           opCode === OPS.paintFormXObjectBegin
         ) {
           const imageName = ops.argsArray[i][0];
+          const args = ops.argsArray[i];
 
-          // Skip if imageName is not a valid string or has name property
-          if (!imageName || (typeof imageName !== 'string' && !imageName.name)) {
-            continue;
-          }
-
-          // Log what type of operation this is
+          // Log what type of operation this is BEFORE validation
           const opType =
             opCode === OPS.paintImageXObject
               ? 'XObject'
@@ -139,7 +135,21 @@ async function extractEmbeddedImages(buffer) {
                 ? 'Inline'
                 : 'FormXObject';
           console.log(
-            `Found ${opType} "${imageName}" on page ${pageNum}, opCode=${opCode}`
+            `Processing ${opType} operation, args:`,
+            args,
+            `imageName type: ${typeof imageName}`,
+            `imageName:`,
+            imageName
+          );
+
+          // Skip if imageName is not a valid string or has name property
+          if (!imageName || (typeof imageName !== 'string' && !imageName.name)) {
+            console.warn(`⚠ Skipping ${opType} - invalid imageName:`, imageName);
+            continue;
+          }
+
+          console.log(
+            `✓ Found ${opType} "${imageName}" on page ${pageNum}, opCode=${opCode}`
           );
 
           try {
