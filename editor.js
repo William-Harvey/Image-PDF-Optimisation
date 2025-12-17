@@ -2141,7 +2141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!state.cropper) return;
     state.cropper.enable();
     state.cropper.setDragMode('crop');
-    state.cropper.setAspectRatio(state.state.currentAspectRatio_crop);
+    state.cropper.setAspectRatio(state.currentAspectRatio_crop);
     state.isCropping = true;
     applyCropBtn.disabled = true;
     cancelCropBtn.disabled = false;
@@ -2256,14 +2256,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const aspectValue = btn.getAttribute('data-aspect');
       if (aspectValue === 'free') {
-        state.state.currentAspectRatio_crop = NaN;
+        state.currentAspectRatio_crop = NaN;
       } else {
-        state.state.currentAspectRatio_crop = parseFloat(aspectValue);
+        state.currentAspectRatio_crop = parseFloat(aspectValue);
       }
 
       // Update state.cropper if it's active
       if (state.cropper && state.isCropping) {
-        state.cropper.setAspectRatio(state.state.currentAspectRatio_crop);
+        state.cropper.setAspectRatio(state.currentAspectRatio_crop);
       }
     });
   });
@@ -2489,8 +2489,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Recreate state.masterCanvas from the restored state
       state.masterCanvas = await createFullCanvasFromImage(state.dataURL);
 
-      if (state.state.cropperData && state.cropper) {
-        state.cropper.setData(state.state.cropperData); // Restore crop area if needed.
+      if (state.cropperData && state.cropper) {
+        state.cropper.setData(state.cropperData); // Restore crop area if needed.
       }
 
       // Update comparison view since it's always on
