@@ -15,8 +15,7 @@ cropper.min.css
 jspdf.umd.min.js
 pdf-lib.min.js
 browser-image-compression.js
-pdf.mjs
-pdf.worker.mjs
+unpdf.bundle.mjs
 
 # Lock files
 package-lock.json

@@ -79,12 +79,11 @@ _(Link to be added once published)_
 ├── config.js               # Configuration constants
 ├── utils.js                # Validation & helper functions
 ├── memory.js               # Memory management utilities
-├── pdf-init.js             # PDF.js initialization
+├── unpdf.bundle.mjs        # PDF processing (unpdf library)
 ├── images/                 # Extension icons
 └── Third-party libraries:
     ├── cropper.min.js      # Image cropping (Cropper.js v1.4.3)
     ├── jspdf.umd.min.js    # PDF generation
-    ├── pdf.mjs / pdf.worker.mjs  # PDF rendering (PDF.js)
     ├── pdf-lib.min.js      # PDF manipulation
     └── browser-image-compression.js  # Advanced compression
 ```
