@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Simple Image/PDF Editor, by William Harvey",
+  "name": "Image & PDF Compressor",
   "version": "3.0.0",
-  "description": "Professional image editor: crop, resize, rotate, filter, and convert images with ease.",
+  "description": "Reduce image and PDF file sizes by 50-80% with smart compression. All processing happens locally in your browser.",
   "author": {
     "name": "William Harvey",
     "url": "https://www.linkedin.com/in/williamharveyuk/"
@@ -13,7 +13,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Open Image Editor (Ctrl+Shift+E)",
+    "default_title": "Compress Image/PDF (Ctrl+Shift+E)",
     "default_icon": {
       "16": "images/icon16.png",
       "32": "images/icon32.png",
@@ -33,7 +33,7 @@
         "default": "Ctrl+Shift+E",
         "mac": "Command+Shift+E"
       },
-      "description": "Open Image Editor"
+      "description": "Compress Image/PDF"
     }
   },
   "content_security_policy": {
